@@ -1,183 +1,129 @@
 # 檔名: pages/home_page.py
-# 系統首頁
+# 系統首頁 - 已針對手機版優化
 
 import streamlit as st
-from datetime import datetime
 
 def show_home_page():
-    """顯示系統首頁"""
+    """顯示系統首頁，包含桌面和手機兩種佈局"""
     
-    # 設備檢測和標題（隱藏式）
+    # --- 統一的系統標題和介紹 ---
     st.markdown("""
-    <script>
-    // 設備檢測（後台運行）
-    (function() {
-        const userAgent = navigator.userAgent;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-        const isTablet = /iPad|Android(?=.*\\bMobile\\b)/i.test(userAgent);
-        
-        if (isMobile && !isTablet) {
-            document.body.classList.add('mobile-device');
-        } else if (isTablet) {
-            document.body.classList.add('tablet-device');
-        } else {
-            document.body.classList.add('desktop-device');
-        }
-    })();
-    </script>
-    """, unsafe_allow_html=True)
-    
-    # 系統標題和介紹
-    st.markdown("""
-    <div style='text-align: center; padding: 2rem 0;'>
-        <h1 style='color: #2E86AB; font-size: 3rem; margin-bottom: 1rem;'>
-            📄 歡迎使用北大文件比對與範本管理系統
+    <div style='text-align: center; padding: 2rem 1rem;'>
+        <h1 style='color: #2E86AB; margin-bottom: 1rem;'>
+            📄 北大文件比對與範本管理系統
         </h1>
-        <p style='font-size: 1.3rem; color: #666; margin-bottom: 2rem;'>
-            智慧化的PDF文件處理解決方案，讓您的文件管理更加高效準確
+        <p style='font-size: 1.2rem; color: #555;'>
+            一個智慧化的文件處理解決方案
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # 系統功能概覽
+    st.markdown("---")
+
+    # --- 桌面版佈局 (Desktop-only) ---
+    st.markdown('<div class="desktop-only">', unsafe_allow_html=True)
     st.markdown("## 🚀 系統功能概覽")
-    
-    # 功能卡片
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown("""
         <div class="feature-card">
             <h3>🎨 PDF 變數標記</h3>
             <ul>
-                <li>📤 上傳PDF範本文件</li>
-                <li>🎯 視覺化標記變數位置</li>
-                <li>📊 建立變數資料庫</li>
-                <li>🔍 範本管理與預覽</li>
+                <li>上傳PDF範本文件</li>
+                <li>視覺化標記變數位置</li>
+                <li>建立可重複使用的範本</li>
             </ul>
-            <p><strong>用途：</strong>建立可重複使用的PDF範本</p>
         </div>
         """, unsafe_allow_html=True)
-        
         st.markdown("""
         <div class="feature-card">
             <h3>🔍 文件比對檢查</h3>
             <ul>
-                <li>📊 上傳待檢查的PDF文件</li>
-                <li>🎯 多範本智慧比對</li>
-                <li>📄 標記頁面精確檢查</li>
-                <li>📋 自動生成缺失清單</li>
+                <li>上傳待檢查的PDF文件</li>
+                <li>多範本智慧比對</li>
+                <li>自動生成缺失清單</li>
             </ul>
-            <p><strong>用途：</strong>確保文件符合範本要求</p>
         </div>
         """, unsafe_allow_html=True)
-    
     with col2:
         st.markdown("""
         <div class="feature-card">
             <h3>📝 檔案輸入與生成</h3>
             <ul>
-                <li>✏️ 根據範本輸入變數值</li>
-                <li>🎯 智慧表單界面</li>
-                <li>📁 生成標準化文件</li>
-                <li>💾 支援多種輸出格式</li>
+                <li>根據範本輸入變數值</li>
+                <li>生成標準化文件</li>
+                <li>支援多種輸出格式</li>
             </ul>
-            <p><strong>用途：</strong>快速產出符合範本的文件</p>
         </div>
         """, unsafe_allow_html=True)
-        
         st.markdown("""
         <div class="feature-card">
             <h3>⚙️ 範本管理設定</h3>
             <ul>
-                <li>📂 範本群組管理</li>
-                <li>🏷️ 分類與標籤系統</li>
-                <li>📊 使用統計分析</li>
-                <li>🔧 系統參數設定</li>
+                <li>範本群組管理</li>
+                <li>分類與標籤系統</li>
+                <li>有效組織和管理範本庫</li>
             </ul>
-            <p><strong>用途：</strong>有效組織和管理範本庫</p>
         </div>
         """, unsafe_allow_html=True)
-    
-    # 使用流程
-    st.markdown("## 📋 使用流程")
-    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+    # --- 手機版佈局 (Mobile-only) ---
+    st.markdown('<div class="mobile-only">', unsafe_allow_html=True)
+    st.markdown("## 🚀 功能列表")
     st.markdown("""
-    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                padding: 2rem; border-radius: 15px; color: white; margin: 1rem 0;'>
-        <h4 style='color: white; text-align: center; margin-bottom: 1.5rem;'>
-            🔄 完整工作流程
-        </h4>
-        <div style='display: flex; justify-content: space-between; align-items: center;'>
-            <div style='text-align: center; flex: 1;'>
-                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>1️⃣</div>
-                <div><strong>建立範本</strong></div>
-                <div style='font-size: 0.9rem; opacity: 0.9;'>上傳PDF並標記變數</div>
-            </div>
-            <div style='font-size: 1.5rem; color: #FFD700;'>→</div>
-            <div style='text-align: center; flex: 1;'>
-                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>2️⃣</div>
-                <div><strong>輸入資料</strong></div>
-                <div style='font-size: 0.9rem; opacity: 0.9;'>填寫變數值生成文件</div>
-            </div>
-            <div style='font-size: 1.5rem; color: #FFD700;'>→</div>
-            <div style='text-align: center; flex: 1;'>
-                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>3️⃣</div>
-                <div><strong>比對檢查</strong></div>
-                <div style='font-size: 0.9rem; opacity: 0.9;'>上傳文件進行比對</div>
-            </div>
-            <div style='font-size: 1.5rem; color: #FFD700;'>→</div>
-            <div style='text-align: center; flex: 1;'>
-                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>4️⃣</div>
-                <div><strong>獲取報告</strong></div>
-                <div style='font-size: 0.9rem; opacity: 0.9;'>下載缺失清單</div>
-            </div>
+        <div class='mobile-feature-list'>
+            <div class="feature-card"><h3>🎨 PDF 變數標記</h3></div>
+            <div class="feature-card"><h3>📝 檔案輸入與生成</h3></div>
+            <div class="feature-card"><h3>🔍 文件比對檢查</h3></div>
+            <div class="feature-card"><h3>⚙️ 範本管理設定</h3></div>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    
+    # --- 統一的工作流程 ---
+    st.markdown("## 📋 完整工作流程")
+    st.markdown("""
+    <div class='workflow-container' style='display: flex; justify-content: space-around; align-items: center; 
+                 background: #f0f2f6; padding: 2rem; border-radius: 15px; margin: 1rem 0;'>
+        <div class='workflow-step' style='text-align: center; flex: 1;'>
+            <div style='font-size: 2rem;'>1️⃣</div><div><strong>建立範本</strong></div>
+        </div>
+        <div class='workflow-arrow' style='font-size: 1.5rem; color: #2E86AB;'>→</div>
+        <div class='workflow-step' style='text-align: center; flex: 1;'>
+            <div style='font-size: 2rem;'>2️⃣</div><div><strong>生成文件</strong></div>
+        </div>
+        <div class='workflow-arrow' style='font-size: 1.5rem; color: #2E86AB;'>→</div>
+        <div class='workflow-step' style='text-align: center; flex: 1;'>
+            <div style='font-size: 2rem;'>3️⃣</div><div><strong>比對檢查</strong></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # 注意：快捷按鈕已移除，用戶可通過左側選單導航
-    
-    # 簡化的系統狀態
-    st.markdown("---")
+
+    # --- 統一的系統狀態 ---
     st.markdown("## 📊 系統狀態")
-    
-    # 手機友好的雙欄布局
+    try:
+        from core.pdf_annotation_system import PDFAnnotationSystem
+        system = PDFAnnotationSystem()
+        templates = system.get_templates_list()
+        template_count = len(templates) if templates else 0
+    except Exception:
+        template_count = "N/A"
+        
     col1, col2 = st.columns(2)
-    
     with col1:
-        # 模擬資料
-        template_count = 0
-        try:
-            from core.pdf_annotation_system import PDFAnnotationSystem
-            system = PDFAnnotationSystem()
-            templates = system.get_templates_list()
-            template_count = len(templates) if templates else 0
-        except:
-            pass
-        st.metric("📄 範本數量", template_count)
-    
+        st.metric("📄 範本總數", template_count)
     with col2:
-        st.metric("✅ 系統狀態", "正常運行")
-    
-    # 簡化的使用提示
-    st.markdown("## 💡 使用提示")
-    
-    st.info("""
-    **📱 行動裝置最佳化**
-    - 支援手機和平板瀏覽
-    - 觸控操作友好設計
-    - 自動儲存工作進度
-    """)
-    
-    # 技術資訊收合
-    with st.expander("🔧 技術資訊"):
-        st.markdown("""
-        **系統版本：** v3.0 (行動優化版)  
-        **支援格式：** PDF文件  
-        **瀏覽器：** Chrome, Firefox, Safari  
-        **架構：** Streamlit + SQLite
-        """)
+        st.metric("✅ 系統狀態", "運行中")
 
 if __name__ == "__main__":
+    # 為了能獨立測試此頁面，我們也加上CSS的引用
+    st.set_page_config(layout="wide")
+    try:
+        from utils.ui_components import apply_custom_css
+        apply_custom_css()
+    except ImportError:
+        st.warning("Could not import custom CSS.")
     show_home_page()

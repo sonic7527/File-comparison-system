@@ -18,266 +18,137 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # 導入自定義模組
-# 為了讓主程式能獨立顯示，我們將導入放在 try-except 中
-try:
-    from core.template_manager import TemplateManager
-    from config.template_config import TemplateConfig, TemplateVariableParser
-    # 檢查並導入 PDF 相關模組
-    from pages.pdf_annotation_interface import pdf_annotation_interface
-    # 導入響應式UI組件
-    from utils.ui_components import apply_custom_css
-except ImportError:
-    # 在這個主檔案中，我們可以允許導入失敗，以便單獨檢視主頁面佈局
-    # 具體的功能頁面會在被選中時才嘗試載入
-    def apply_custom_css():
-        """響應式CSS樣式備用版本"""
-        st.markdown("""
-        <style>
-        @media (max-width: 768px) {
-            .main .block-container { padding: 0.5rem; }
-            .stButton > button { width: 100% !important; }
-            h1 { font-size: 1.8rem !important; }
-        }
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        </style>
-        """, unsafe_allow_html=True)
-
+from utils.ui_components import apply_custom_css, mobile_navigation_bar, mobile_page_switch
+from pages.home_page import show_home_page
+from pages.pdf_annotation_interface import pdf_annotation_interface
+from pages.file_input_generator import file_input_generation_page
+from pages.document_comparison import document_comparison_page
+from pages.template_settings import template_settings_page
+from pages.document_generator import document_generator_tab
 
 def setup_page_config():
     """設定響應式頁面配置"""
     st.set_page_config(
         page_title="📄 PDF文件比對與範本管理系統",
         page_icon="📄",
-        layout="wide",  # 恢復原本的wide布局
-        initial_sidebar_state="expanded",  # 電腦版預設展開側邊欄
+        layout="wide",
+        initial_sidebar_state="auto", # 電腦版展開，手機版自動隱藏
         menu_items={
             'Get Help': None,
             'Report a bug': None,
-            'About': "📄 PDF文件比對與範本管理系統 v3.0 - 響應式優化版"
+            'About': "📄 PDF文件比對與範本管理系統 v3.1 - 手機優化版"
         }
     )
-    
-    hide_streamlit_style = """
-    <style>
-    /* 隱藏自動生成的導覽連結 */
-    [data-testid="stSidebarNav"] {
-        display: none;
-    }
-    
-    /* 隱藏不需要的元素 */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    .stDeployButton {display: none !important;}
-    
-    /* 美化按鈕 */
-    .stButton > button {
-        background: linear-gradient(45deg, #4CAF50, #45a049) !important;
-        color: white !important;
-        border-radius: 12px !important;
-        border: none !important;
-        font-weight: bold !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3) !important;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4) !important;
-    }
-    
-    /* 功能卡片樣式 */
-    .feature-card {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin: 1rem 0;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        border: 1px solid rgba(255,255,255,0.2);
-    }
-    
-    .feature-card h3 {
-        color: #2c3e50;
-        margin-bottom: 1rem;
-    }
-    
-    .feature-card ul {
-        list-style: none;
-        padding-left: 0;
-    }
-    
-    .feature-card li {
-        padding: 0.3rem 0;
-        color: #34495e;
-        font-weight: 500;
-    }
-    
-    /* 範本卡片樣式 */
-    .template-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    </style>
-    """
-    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-def sidebar_content():
-    """側邊欄內容"""
+def device_detector_js():
+    """返回一個JavaScript片段，用於檢測設備類型並將其存儲在sessionStorage中。"""
+    return """
+    <script>
+    (function() {
+        if (!sessionStorage.getItem('device_type')) {
+            const userAgent = navigator.userAgent;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+            const device_type = isMobile ? 'mobile' : 'desktop';
+            sessionStorage.setItem('device_type', device_type);
+            
+            // 僅在第一次檢測時重新整理頁面以觸發Python後端
+            window.location.reload();
+        }
+    })();
+    </script>
+    """
+
+def get_device_type():
+    """從 session_state 獲取設備類型 """
+    # 使用 st.experimental_get_query_params() 是一種間接方式
+    # 更可靠的方式是讓 JS 設置一個標記然後重新整理
+    # 在這裡，我們將依賴於JS腳本重載頁面後的一些狀態
+    # 這是Streamlit的一個局限，但我們可以用下面的方式模擬
+    js = device_detector_js()
+    st.components.v1.html(js, height=0)
+
+    # 這裡我們不能直接從JS讀取，所以我們將依賴客戶端重載
+    # 實際設備類型的判斷，將基於是否顯示手機導航欄
+    # 這裡我們先假設一個預設值，並讓前端CSS處理顯示/隱藏
+    return "desktop" # 預設為桌面，讓CSS處理
+
+def desktop_sidebar():
+    """桌面版側邊欄"""
     st.sidebar.markdown("## 🛠️ 功能選單")
     
-    # 功能選擇
-    function_choice = st.sidebar.selectbox(
+    PAGES = [
+        "🏠 系統首頁",
+        "🎨 PDF 變數標記",
+        "📝 檔案輸入與生成", 
+        "🔍 文件比對檢查", 
+        "⚙️ 範本管理設定",
+        "📄 智能文件生成"
+    ]
+
+    if 'page_selection' not in st.session_state:
+        st.session_state['page_selection'] = PAGES[0]
+
+    choice = st.sidebar.radio(
         "選擇功能",
-        [
-            "🏠 系統首頁",
-            "🎨 PDF 變數標記",
-            "📝 檔案輸入與生成", 
-            "🔍 文件比對檢查", 
-            "⚙️ 範本管理設定",
-            "📄 智能文件生成"
-        ],
-        index=st.session_state.get('page_selection_index', 0) # 預設顯示首頁
+        options=PAGES,
+        key="desktop_nav"
     )
-    
-    # 如果有頁面選擇狀態，更新選擇
-    if 'page_selection' in st.session_state:
-        try:
-            options = [
-                "🏠 系統首頁",
-                "🎨 PDF 變數標記",
-                "📝 檔案輸入與生成", 
-                "🔍 文件比對檢查", 
-                "⚙️ 範本管理設定",
-                "📄 智能文件生成"
-            ]
-            if st.session_state['page_selection'] in options:
-                function_choice = st.session_state['page_selection']
-                st.session_state['page_selection_index'] = options.index(function_choice)
-                del st.session_state['page_selection']  # 清除狀態
-        except:
-            pass
+    st.session_state['page_selection'] = choice
     
     st.sidebar.markdown("---")
-    
-    # 檔案上傳設定
-    st.sidebar.markdown("### 📁 檔案設定")
-    max_file_size = st.sidebar.slider("最大檔案大小 (MB)", 1, 100, 10)
-    allowed_formats = st.sidebar.multiselect(
+    st.sidebar.markdown("### ⚙️ 系統設定")
+    st.sidebar.slider("最大檔案大小 (MB)", 1, 100, 10, key="file_size")
+    st.sidebar.multiselect(
         "允許的檔案格式",
-        ["CSV", "Excel", "TXT", "JSON", "PDF"],
-        default=["CSV", "Excel", "TXT", "PDF"]
+        ["PDF", "PNG", "JPG"],
+        default=["PDF", "PNG"],
+        key="file_formats"
     )
-    
-    st.sidebar.markdown("---")
-    
-    # 處理選項
-    st.sidebar.markdown("### ⚙️ 處理選項")
-    auto_process = st.sidebar.checkbox("自動處理", value=True)
-    show_preview = st.sidebar.checkbox("顯示預覽", value=True)
-    
-    return function_choice, max_file_size, allowed_formats, auto_process, show_preview
-
-def home_page_tab():
-    """系統首頁功能"""
-    try:
-        from pages.home_page import show_home_page
-        show_home_page()
-    except ImportError:
-        st.error("❌ 無法載入首頁模組。請確認 `pages/home_page.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行首頁功能時發生錯誤：{e}")
-
-def file_input_generation_tab():
-    """檔案輸入與生成功能"""
-    try:
-        from pages.file_input_generator import file_input_generation_page
-        file_input_generation_page()
-    except ImportError:
-        st.error("❌ 無法載入檔案輸入與生成模組。請確認 `pages/file_input_generator.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行檔案輸入與生成功能時發生錯誤：{e}")
-
-def template_settings_tab():
-    """範本管理設定功能"""
-    try:
-        from pages.template_settings import template_settings_page
-        template_settings_page()
-    except ImportError:
-        st.error("❌ 無法載入範本設定模組。請確認 `pages/template_settings.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行範本設定功能時發生錯誤：{e}")
-
-def pdf_annotation_tab():
-    """PDF 變數標記功能"""
-    try:
-        from pages.pdf_annotation_interface import pdf_annotation_interface
-        pdf_annotation_interface()
-    except ImportError:
-        st.error("❌ 無法載入 PDF 變數標記模組。請確認 `pages/pdf_annotation_interface.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行 PDF 變數標記功能時發生錯誤：{e}")
-
-
-def document_comparison_tab():
-    """文件比對檢查功能"""
-    try:
-        from pages.document_comparison import document_comparison_page
-        document_comparison_page()
-    except ImportError:
-        st.error("❌ 無法載入文件比對模組。請確認 `pages/document_comparison.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行文件比對功能時發生錯誤：{e}")
-
-
-def document_generator_tab():
-    """智能文件生成功能"""
-    try:
-        from pages.document_generator import document_generator_tab
-        document_generator_tab()
-    except ImportError:
-        st.error("❌ 無法載入智能文件生成模組。請確認 `pages/document_generator.py` 檔案存在。")
-    except Exception as e:
-        st.error(f"執行智能文件生成功能時發生錯誤：{e}")
-
 
 def main():
     """主應用程式進入點"""
     setup_page_config()
-    
-    # 啟用響應式設計（包含手機版優化）
     apply_custom_css()
     
-    function_choice, _, _, _, _ = sidebar_content()
+    # --- 設備檢測與導航 ---
+    # 默認在所有設備上顯示側邊欄，讓CSS控制其可見性
+    desktop_sidebar()
+
+    # 僅在手機上顯示底部導航
+    st.markdown('<div class="mobile-only">', unsafe_allow_html=True)
+    mobile_navigation_bar()
+    mobile_page_switch()
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # 根據選擇顯示對應功能
-    if function_choice == "🏠 系統首頁":
-        home_page_tab()
-    elif function_choice == "🎨 PDF 變數標記":
-        pdf_annotation_tab()
-    elif function_choice == "📝 檔案輸入與生成":
-        file_input_generation_tab()
-    elif function_choice == "🔍 文件比對檢查":
-        document_comparison_tab()
-    elif function_choice == "⚙️ 範本管理設定":
-        template_settings_tab()
-    elif function_choice == "📄 智能文件生成":
+    # --- 頁面渲染 ---
+    current_page = st.session_state.get('page_selection', "🏠 系統首頁")
+
+    if current_page == "🏠 系統首頁":
+        show_home_page()
+    elif current_page == "🎨 PDF 變數標記":
+        pdf_annotation_interface()
+    elif current_page == "📝 檔案輸入與生成":
+        file_input_generation_page()
+    elif current_page == "🔍 文件比對檢查":
+        document_comparison_page()
+    elif current_page == "⚙️ 範本管理設定":
+        template_settings_page()
+    elif current_page == "📄 智能文件生成":
         document_generator_tab()
-    
-    st.markdown("---")
+
+    # --- 頁腳 ---
     st.markdown(
         f"""
-        <div style='text-align: center; color: #666; padding: 1rem;'>
-            📄 北大PDF文件比對與範本管理系統 v3.0 (手機優化版) | 
-            🕒 最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")}
+        <div style='text-align: center; color: #888; padding: 2rem 0; font-size: 0.9rem;'>
+            <p>北大文件比對與範本管理系統 v3.1 | 最後更新：{datetime.now().strftime("%Y-%m-%d")}</p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
 if __name__ == "__main__":
+    # 使用JS注入來檢測設備類型
+    # 這是一個啟動技巧：首次加載時注入JS，JS會存儲設備類型並重新加載。
+    # 之後的加載將會有設備類型的信息。
+    st.components.v1.html(device_detector_js(), height=0)
     main()
