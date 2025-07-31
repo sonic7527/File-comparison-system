@@ -136,6 +136,19 @@ class PDFAnnotationSystem:
             st.error(f"取得範本列表錯誤：{str(e)}")
             return []
     
+    def get_template_info(self, template_id: int) -> Dict:
+        """獲取單個範本的詳細資訊"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM templates WHERE id = ?", (template_id,))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+        except Exception as e:
+            st.error(f"取得範本資訊錯誤：{str(e)}")
+            return None
+    
     def load_template_page(self, template_id: int, page_number: int) -> Image.Image:
         image_path = os.path.join(self.templates_dir, f"{template_id}_page_{page_number}.png")
         return Image.open(image_path) if os.path.exists(image_path) else None

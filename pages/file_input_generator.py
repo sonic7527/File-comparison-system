@@ -102,20 +102,23 @@ class FileInputGenerator:
                     if var_type == "日期":
                         value = st.date_input(
                             f"{var_name} ({var_type})",
-                            help=f"範例值：{sample_value}" if sample_value else None
+                            help=f"範例值：{sample_value}" if sample_value else None,
+                            key=f"date_{template_id}_{page_num}_{var_name}"  # 添加唯一key
                         )
                         st.session_state[f'input_values_{template_id}'][var_name] = value.strftime("%Y-%m-%d") if value else ""
                     elif var_type == "數字":
                         value = st.number_input(
                             f"{var_name} ({var_type})",
-                            help=f"範例值：{sample_value}" if sample_value else None
+                            help=f"範例值：{sample_value}" if sample_value else None,
+                            key=f"number_{template_id}_{page_num}_{var_name}"  # 添加唯一key
                         )
                         st.session_state[f'input_values_{template_id}'][var_name] = str(value)
                     else:  # 文字、地址、其他
                         value = st.text_input(
                             f"{var_name} ({var_type})",
                             placeholder=f"範例：{sample_value}" if sample_value else f"請輸入{var_name}",
-                            help=f"範例值：{sample_value}" if sample_value else None
+                            help=f"範例值：{sample_value}" if sample_value else None,
+                            key=f"input_{template_id}_{page_num}_{var_name}"  # 添加唯一key
                         )
                         st.session_state[f'input_values_{template_id}'][var_name] = value
                 
@@ -212,20 +215,190 @@ class FileInputGenerator:
     def _generate_document(self, template_id: int, input_values: Dict, output_name: str, output_format: str) -> bool:
         """生成文件"""
         try:
-            # TODO: 實現實際的文件生成邏輯
-            # 1. 載入PDF範本
-            # 2. 在指定位置填入變數值
-            # 3. 生成新的PDF或圖片
-            # 4. 提供下載
+            # 獲取範本資訊
+            template_info = self.system.get_template_info(template_id)
+            if not template_info:
+                st.error("❌ 無法獲取範本資訊")
+                return False
             
-            st.info("🚧 文件生成功能正在開發中...")
-            st.write("**將要生成的內容：**")
-            st.json(input_values)
+            # 獲取範本的所有註解
+            annotations = self.system.get_template_annotations(template_id)
+            if not annotations:
+                st.error("❌ 範本沒有標記任何變數")
+                return False
             
-            return True
+            # 創建輸出目錄
+            output_dir = "generated_files"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # 生成文件
+            if output_format == "PDF（推薦）":
+                success = self._generate_pdf(template_info, annotations, input_values, output_name, output_dir)
+            else:  # PNG圖片
+                success = self._generate_image(template_info, annotations, input_values, output_name, output_dir)
+            
+            if success:
+                # 提供下載連結
+                if output_format == "PDF（推薦）":
+                    file_path = os.path.join(output_dir, f"{output_name}.pdf")
+                    mime_type = "application/pdf"
+                else:  # PNG圖片
+                    file_path = os.path.join(output_dir, f"{output_name}.png")
+                    mime_type = "image/png"
+                
+                if os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        file_data = f.read()
+                    
+                    st.download_button(
+                        label="📥 下載生成的文件",
+                        data=file_data,
+                        file_name=os.path.basename(file_path),
+                        mime=mime_type
+                    )
+                else:
+                    st.error(f"❌ 生成的文件不存在：{file_path}")
+            
+            return success
             
         except Exception as e:
             st.error(f"生成文件時發生錯誤：{str(e)}")
+            return False
+    
+    def _generate_pdf(self, template_info: Dict, annotations: List[Dict], input_values: Dict, output_name: str, output_dir: str) -> bool:
+        """生成PDF文件 - 在原始範本上填入變數值"""
+        try:
+            import fitz  # PyMuPDF
+            
+            # 載入原始PDF範本
+            template_id = template_info['id']
+            original_pdf_path = os.path.join(self.system.templates_dir, f"{template_id}_original.pdf")
+            
+            if not os.path.exists(original_pdf_path):
+                st.error("❌ 找不到原始PDF範本文件")
+                return False
+            
+            # 打開原始PDF
+            doc = fitz.open(original_pdf_path)
+            
+            # 按頁面處理變數替換
+            for page_num in range(doc.page_count):
+                page = doc[page_num]
+                
+                # 獲取當前頁面的變數標記
+                page_annotations = [ann for ann in annotations if ann['page_number'] == page_num + 1]
+                
+                for annotation in page_annotations:
+                    var_name = annotation['variable_name']
+                    if var_name in input_values:
+                        # 獲取變數值
+                        var_value = input_values[var_name]
+                        
+                        # 獲取標記的座標
+                        x_start = annotation['x_start']
+                        y_start = annotation['y_start']
+                        x_end = annotation['x_end']
+                        y_end = annotation['y_end']
+                        
+                        # 計算文字位置和大小
+                        rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                        
+                        # 在標記位置填入變數值
+                        page.insert_text(
+                            rect.tl,  # 左上角位置
+                            str(var_value),
+                            fontsize=12,  # 字體大小
+                            color=(0, 0, 0),  # 黑色
+                            fontname="helv"  # 字體
+                        )
+            
+            # 保存生成的PDF
+            output_path = os.path.join(output_dir, f"{output_name}.pdf")
+            doc.save(output_path)
+            doc.close()
+            
+            st.success(f"✅ PDF文件已生成：{output_path}")
+            return True
+            
+        except Exception as e:
+            st.error(f"生成PDF時發生錯誤：{str(e)}")
+            return False
+    
+    def _generate_image(self, template_info: Dict, annotations: List[Dict], input_values: Dict, output_name: str, output_dir: str) -> bool:
+        """生成圖片文件 - 在原始範本圖片上填入變數值"""
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            
+            # 載入原始範本圖片
+            template_id = template_info['id']
+            total_pages = template_info.get('total_pages', 0)
+            
+            # 創建圖片列表
+            generated_images = []
+            
+            for page_num in range(1, total_pages + 1):
+                # 載入原始頁面圖片
+                image_path = os.path.join(self.system.templates_dir, f"{template_id}_page_{page_num}.png")
+                
+                if not os.path.exists(image_path):
+                    st.error(f"❌ 找不到第{page_num}頁的圖片文件")
+                    return False
+                
+                # 打開原始圖片
+                img = Image.open(image_path)
+                draw = ImageDraw.Draw(img)
+                
+                # 嘗試載入字體（如果失敗則使用預設字體）
+                try:
+                    font = ImageFont.truetype("arial.ttf", 16)
+                except:
+                    font = ImageFont.load_default()
+                
+                # 獲取當前頁面的變數標記
+                page_annotations = [ann for ann in annotations if ann['page_number'] == page_num]
+                
+                for annotation in page_annotations:
+                    var_name = annotation['variable_name']
+                    if var_name in input_values:
+                        # 獲取變數值
+                        var_value = input_values[var_name]
+                        
+                        # 獲取標記的座標
+                        x_start = annotation['x_start']
+                        y_start = annotation['y_start']
+                        x_end = annotation['x_end']
+                        y_end = annotation['y_end']
+                        
+                        # 在標記位置填入變數值
+                        draw.text(
+                            (x_start, y_start),
+                            str(var_value),
+                            fill=(0, 0, 0),  # 黑色
+                            font=font
+                        )
+                
+                generated_images.append(img)
+            
+            # 保存生成的圖片
+            if len(generated_images) == 1:
+                # 單頁圖片
+                output_path = os.path.join(output_dir, f"{output_name}.png")
+                generated_images[0].save(output_path)
+            else:
+                # 多頁圖片，保存為PDF
+                output_path = os.path.join(output_dir, f"{output_name}.pdf")
+                generated_images[0].save(
+                    output_path,
+                    "PDF",
+                    save_all=True,
+                    append_images=generated_images[1:]
+                )
+            
+            st.success(f"✅ 圖片文件已生成：{output_path}")
+            return True
+            
+        except Exception as e:
+            st.error(f"生成圖片時發生錯誤：{str(e)}")
             return False
 
 def file_input_generation_page():

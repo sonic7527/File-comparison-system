@@ -136,25 +136,7 @@ def show_home_page():
     </div>
     """, unsafe_allow_html=True)
     
-    # 快速開始
-    st.markdown("## 🎯 快速開始")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🎨 開始標記範本", use_container_width=True, type="primary"):
-            st.session_state['page_selection'] = '🎨 PDF 變數標記'
-            st.rerun()
-    
-    with col2:
-        if st.button("📝 輸入資料生成", use_container_width=True):
-            st.session_state['page_selection'] = '📝 檔案輸入與生成'
-            st.rerun()
-    
-    with col3:
-        if st.button("🔍 文件比對檢查", use_container_width=True):
-            st.session_state['page_selection'] = '🔍 文件比對檢查'
-            st.rerun()
+    # 注意：快捷按鈕已移除，用戶可通過左側選單導航
     
     # 簡化的系統狀態
     st.markdown("---")
