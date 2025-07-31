@@ -1,0 +1,33 @@
+📤 現在要上傳的檔案清單
+
+📁 請從您的專案資料夾選擇這些檔案上傳：
+
+🔥 第一批：核心檔案
+✅ main.py
+✅ requirements.txt  
+✅ README.md
+✅ .gitignore
+
+🔥 第二批：.streamlit 資料夾
+✅ .streamlit/config.toml
+
+🔥 第三批：pages 資料夾內的所有檔案
+✅ pages/__init__.py
+✅ pages/home_page.py
+✅ pages/pdf_annotation_interface.py
+✅ pages/file_input_generator.py
+✅ pages/document_comparison.py
+✅ pages/template_settings.py
+
+🔥 第四批：core 資料夾內的所有檔案
+✅ core/__init__.py
+✅ core/pdf_annotation_system.py
+
+🔥 第五批：utils 資料夾內的所有檔案
+✅ utils/__init__.py
+✅ utils/ui_components.py
+
+💡 提示：
+- 可以一次選擇多個檔案上傳
+- 也可以直接拖拽整個資料夾
+- 不要上傳 venv/ 或 poppler-24.08.0/ 資料夾
