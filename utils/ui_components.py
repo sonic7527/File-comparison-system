@@ -125,11 +125,6 @@ def apply_custom_css():
             margin: 0 !important;
         }
         
-        /* 側邊欄優化 */
-        .css-1d391kg {
-            width: 250px !important;
-        }
-        
         /* 選擇框優化 */
         .stSelectbox {
             margin: 0.5rem 0 !important;

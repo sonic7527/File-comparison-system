@@ -50,7 +50,7 @@ def setup_page_config():
     st.set_page_config(
         page_title="📄 PDF文件比對與範本管理系統",
         page_icon="📄",
-        layout="wide",  # 電腦版使用wide布局
+        layout="wide",  # 恢復原本的wide布局
         initial_sidebar_state="expanded",  # 電腦版預設展開側邊欄
         menu_items={
             'Get Help': None,
@@ -61,42 +61,15 @@ def setup_page_config():
     
     hide_streamlit_style = """
     <style>
-    /* 【安全修改點】
-    我們只在這裡加入這條規則，用來隱藏 Streamlit 因 pages/ 資料夾而自動生成的導覽連結。
-    這個選擇器 [data-testid="stSidebarNav"] 是 Streamlit 專為該區塊設定的，
-    因此它非常精準，不會影響到側邊欄的其他任何元素（例如您的 selectbox 選單）。
-    這可以確保整個側邊欄不會像您之前擔心的那樣消失。
-    */
+    /* 隱藏自動生成的導覽連結 */
     [data-testid="stSidebarNav"] {
         display: none;
     }
-
-    /* 以下為您原有的、保持不變的 CSS 規則 */
     
-    /* 確保側邊欄顯示 */
-    .css-1d391kg {
-        display: block !important;
-        visibility: visible !important;
-    }
-    
-    /* 美化側邊欄背景 */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%) !important;
-        padding: 1rem !important;
-    }
-    
-    /* 側邊欄文字顏色 */
-    .css-1d391kg .stMarkdown h2,
-    .css-1d391kg .stMarkdown h3,
-    .css-1d391kg .stSelectbox label,
-    .css-1d391kg .stSlider label,
-    .css-1d391kg .stMultiSelect label,
-    .css-1d391kg .stCheckbox label,
-    .css-1d391kg .element-container label {
-        color: white !important;
-        font-weight: 600 !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
-    }
+    /* 隱藏不需要的元素 */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    .stDeployButton {display: none !important;}
     
     /* 美化按鈕 */
     .stButton > button {
@@ -113,11 +86,6 @@ def setup_page_config():
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4) !important;
     }
-    
-    /* 隱藏不需要的元素 */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    .stDeployButton {display: none !important;}
     
     /* 功能卡片樣式 */
     .feature-card {
@@ -170,7 +138,8 @@ def sidebar_content():
             "🎨 PDF 變數標記",
             "📝 檔案輸入與生成", 
             "🔍 文件比對檢查", 
-            "⚙️ 範本管理設定"
+            "⚙️ 範本管理設定",
+            "📄 智能文件生成"
         ],
         index=st.session_state.get('page_selection_index', 0) # 預設顯示首頁
     )
@@ -183,7 +152,8 @@ def sidebar_content():
                 "🎨 PDF 變數標記",
                 "📝 檔案輸入與生成", 
                 "🔍 文件比對檢查", 
-                "⚙️ 範本管理設定"
+                "⚙️ 範本管理設定",
+                "📄 智能文件生成"
             ]
             if st.session_state['page_selection'] in options:
                 function_choice = st.session_state['page_selection']
@@ -264,11 +234,22 @@ def document_comparison_tab():
         st.error(f"執行文件比對功能時發生錯誤：{e}")
 
 
+def document_generator_tab():
+    """智能文件生成功能"""
+    try:
+        from pages.document_generator import document_generator_tab
+        document_generator_tab()
+    except ImportError:
+        st.error("❌ 無法載入智能文件生成模組。請確認 `pages/document_generator.py` 檔案存在。")
+    except Exception as e:
+        st.error(f"執行智能文件生成功能時發生錯誤：{e}")
+
+
 def main():
     """主應用程式進入點"""
     setup_page_config()
     
-    # 啟用響應式設計
+    # 啟用響應式設計（包含手機版優化）
     apply_custom_css()
     
     function_choice, _, _, _, _ = sidebar_content()
@@ -284,6 +265,8 @@ def main():
         document_comparison_tab()
     elif function_choice == "⚙️ 範本管理設定":
         template_settings_tab()
+    elif function_choice == "📄 智能文件生成":
+        document_generator_tab()
     
     st.markdown("---")
     st.markdown(
