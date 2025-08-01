@@ -1,10 +1,8 @@
 import streamlit as st
-import sys
 import os
 import sqlite3
 
-# --- 路徑與初始化 ---
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 移除 sys.path 操作，讓 Streamlit 以標準方式處理路徑
 from core.database import init_database, DB_PATH
 
 # --- 頁面配置 ---
@@ -19,6 +17,11 @@ st.set_page_config(
 def get_system_stats():
     """從資料庫獲取系統統計數據"""
     try:
+        if not os.path.exists(os.path.dirname(DB_PATH)):
+            os.makedirs(os.path.dirname(DB_PATH))
+        
+        init_database()
+        
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM template_groups")
@@ -90,7 +93,7 @@ def initialize_app():
 # --- 頁面跳轉函數 ---
 def navigate_to(page_name):
     st.session_state.page_selection = page_name
-    st.experimental_rerun()
+    st.rerun()
 
 # --- 頁面渲染 ---
 def show_home_page():
@@ -127,12 +130,11 @@ def main():
     apply_global_styles()
     initialize_app()
     
-    # 讓 session_state 控制 selectbox 的選擇
     page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
     try:
         current_index = page_options.index(st.session_state.page_selection)
     except ValueError:
-        current_index = 0 # 如果 session state 發生錯誤，預設為首頁
+        current_index = 0
 
     st.sidebar.title("📋 功能選單")
     st.session_state.page_selection = st.sidebar.selectbox(
