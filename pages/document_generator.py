@@ -43,7 +43,7 @@ def render_creation_tab():
         if submitted:
             if not all([group_name, source_excel, template_files]):
                 st.warning("請填寫所有欄位並上傳所有必要的檔案。")
-            else:
+                    else:
                 excel_path = save_uploaded_file(source_excel, UPLOAD_DIR)
                 parsed_fields = parse_excel_fields(excel_path)
 
@@ -56,8 +56,8 @@ def render_creation_tab():
                         "parsed_fields": parsed_fields, "template_files": template_files
                     }
                     st.session_state.dg_step = 'confirm_view'
-                    st.experimental_rerun()
-
+                        st.experimental_rerun()
+                    
 def render_generation_tab():
     """渲染文件生成介面"""
     st.subheader("🚀 快速生成文件")
@@ -79,7 +79,7 @@ def render_generation_tab():
         selected_file_id = st.selectbox("2. 選擇範本檔案", options=list(file_options.keys()), format_func=lambda x: file_options[x])
 
         field_definitions = get_field_definitions(selected_group_id)
-        st.markdown("---")
+                            st.markdown("---")
         st.markdown("##### 3. 填寫欄位內容")
 
         field_values = {}
@@ -92,7 +92,7 @@ def render_generation_tab():
             else:
                 field_values[field['name']] = st.text_input(field['name'], value=field.get('default_value', ''), key=key, help=field.get('description', ''))
         
-        st.markdown("---")
+                        st.markdown("---")
 
         if st.button("✨ 生成文件", type="primary", use_container_width=True):
             selected_file_info = next((f for f in template_files if f['id'] == selected_file_id), None)
@@ -115,7 +115,7 @@ def render_generation_tab():
                             use_container_width=True
                         )
                 # 錯誤訊息會由 generate_document 內部顯示，這裡無需再處理
-            else:
+                    else:
                 st.error("選擇的範本檔案不存在，請重新整理。")
 
 
@@ -125,7 +125,7 @@ def render_management_tab():
     template_groups = get_all_template_groups()
     if not template_groups:
         st.info("目前沒有任何範本群組可供管理。")
-        return
+                            return
 
     for group in template_groups:
         with st.expander(f"**{group['name']}** (ID: {group['id']}) - 包含 {group['file_count']} 個檔案"):
@@ -136,7 +136,7 @@ def render_management_tab():
             
             if not template_files:
                 st.caption("此群組目前沒有範本檔案。")
-            else:
+                        else:
                 for f in template_files:
                     c1, c2 = st.columns([0.9, 0.1])
                     c1.text(f"📄 {f['filename']}")
@@ -157,15 +157,15 @@ def render_management_tab():
                         "parsed_fields": parse_excel_fields(excel_path)
                     }
                     st.session_state.dg_step = 'confirm_view'
-                    st.experimental_rerun()
-                else:
+                                    st.experimental_rerun()
+                                else:
                     st.error(f"錯誤：找不到來源 Excel 檔案 '{excel_path}'。")
 
             if c2.button("🗑️ 刪除整個群組", key=f"delete_{group['id']}", use_container_width=True):
                 if delete_template_group(group['id']):
                     st.success(f"已成功刪除範本群組: {group['name']}")
-                    st.experimental_rerun()
-                else:
+                                    st.experimental_rerun()
+        else:
                     st.error("刪除群組時發生錯誤。")
 
 
@@ -176,8 +176,8 @@ def show_field_confirmation_view():
         st.error("發生錯誤：找不到確認資料。返回主頁面...")
         st.session_state.dg_step = 'main_view'
         st.experimental_rerun()
-        return
-
+            return
+        
     action = data['action']
     title = "建立新範本" if action == 'create' else f"更新範本 '{data['group_name']}'"
     submit_label = "✅ 確認並建立" if action == 'create' else "✅ 確認並更新"
@@ -250,7 +250,7 @@ def handle_final_update(data, final_fields):
     try:
         if update_field_definitions(data['group_id'], final_fields):
             st.success(f"範本群組 '{data['group_name']}' 的欄位已成功更新！")
-        else:
+                                else:
             st.error("更新欄位時發生錯誤。")
     except Exception as e:
         st.error(f"更新欄位時發生嚴重錯誤: {e}")
