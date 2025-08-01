@@ -104,8 +104,12 @@ def main():
     if st.session_state.get('mobile_mode', False):
         from pages.mobile_home import mobile_main
         mobile_main()
-        return
-    
+    else:
+        # 電腦版邏輯
+        desktop_main()
+
+def desktop_main():
+    """電腦版主應用程式"""
     # 應用自定義CSS
     apply_custom_css()
     
