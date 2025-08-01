@@ -49,7 +49,6 @@ Thumbs.db
 
 # Project specific
 generated_files/
-data/
 *.db
 *.sqlite
 *.sqlite3
@@ -59,10 +58,7 @@ temp_*
 
 # Large files
 *.pdf
-*.xlsx
 *.xls
-*.docx
-*.doc
 *.png
 *.jpg
 *.jpeg

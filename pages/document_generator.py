@@ -1,179 +1,270 @@
 import streamlit as st
+import pandas as pd
 import os
+from datetime import datetime
+
+# --- 核心模組導入 (已修正) ---
 from core.database import (
-    create_template_group, add_template_file, get_all_template_groups,
-    get_template_files, get_field_definitions, delete_template_group,
-    delete_template_file, update_field_definitions
+    create_template_group, get_all_template_groups, get_template_files,
+    get_field_definitions, update_field_definitions, delete_template_group,
+    delete_template_file
 )
 from core.file_handler import (
-    parse_excel_fields, get_file_type, save_uploaded_file, generate_document
+    parse_excel_fields, save_uploaded_file, get_file_type, generate_document
 )
 
-# --- 主路由器：根據頁面步驟顯示不同內容 ---
-def show_document_generator():
-    """此頁面的主路由器"""
-    page_step = st.session_state.get('dg_step', 'main_view')
+# --- 常數設定 ---
+UPLOAD_DIR = "uploads"
+TEMPLATE_DIR = os.path.join(UPLOAD_DIR, "templates")
+GENERATED_DIR = "generated_files"
 
-    if page_step == 'confirm_view':
-        show_field_confirmation_view()
-    else:
-        show_main_view()
+# --- 初始化應用程式 ---
+def initialize_app():
+    """創建應用程式所需的目錄"""
+    for path in [UPLOAD_DIR, TEMPLATE_DIR, GENERATED_DIR]:
+        if not os.path.exists(path):
+            os.makedirs(path)
+    if 'dg_step' not in st.session_state:
+        st.session_state.dg_step = 'main_view'
+    if 'confirmation_data' not in st.session_state:
+        st.session_state.confirmation_data = None
 
-# --- 主視圖：包含三個分頁 ---
-def show_main_view():
-    st.title("📝 智能文件生成與管理")
-    tabs = st.tabs(["🚀 生成文件", "📁 創建範本", "📚 管理範本"])
-    with tabs[0]:
-        render_generation_tab()
-    with tabs[1]:
-        render_creation_tab()
-    with tabs[2]:
-        render_management_tab()
+# --- UI 渲染函式 ---
 
-# --- 創建範本 Tab ---
 def render_creation_tab():
+    """渲染創建範本的 UI 介面"""
+    st.subheader("📤 上傳檔案以建立新範本")
     with st.form("template_creation_form"):
-        st.markdown("##### 步驟 1: 上傳基本資料Excel檔")
-        excel_file = st.file_uploader("選擇Excel", type=['xlsx', 'xls'], help="第一欄:欄位名, 第二欄:範例值, 第三欄:描述", key="creator_excel")
-        
-        st.markdown("##### 步驟 2: 上傳範本檔案 (可多選)")
-        template_files = st.file_uploader("選擇Word/Excel範本", type=['docx', 'xlsx'], accept_multiple_files=True, key="creator_templates")
-        
-        st.markdown("##### 步驟 3: 命名範本群組")
-        template_name = st.text_input("範本群組名稱", placeholder="例如：公司合約範本")
-        
-        if st.form_submit_button("📋 解析欄位", type="primary"):
-            if excel_file and template_files and template_name:
-                excel_path = save_uploaded_file(excel_file, "data/excel")
-                fields = parse_excel_fields(excel_path)
-                if fields:
+        group_name = st.text_input("範本群組名稱", help="為這組範本命名，例如「2024年第一季合約」")
+        source_excel = st.file_uploader("上傳欄位定義 Excel 檔", type=['xlsx'])
+        template_files = st.file_uploader("上傳 Word/Excel 範本檔案", type=['docx', 'xlsx'], accept_multiple_files=True)
+        submitted = st.form_submit_button("下一步：預覽與確認欄位")
+
+        if submitted:
+            if not all([group_name, source_excel, template_files]):
+                st.warning("請填寫所有欄位並上傳所有必要的檔案。")
+            else:
+                excel_path = save_uploaded_file(source_excel, UPLOAD_DIR)
+                parsed_fields = parse_excel_fields(excel_path)
+
+                if not parsed_fields:
+                    st.error("無法從 Excel 中解析出任何欄位，請檢查檔案格式是否正確。")
+                    if os.path.exists(excel_path): os.remove(excel_path)
+                else:
                     st.session_state.confirmation_data = {
-                        'is_update': False,
-                        'name': template_name,
-                        'excel_path': excel_path,
-                        'template_files': template_files,
-                        'fields': fields
+                        "action": "create", "group_name": group_name, "source_excel_path": excel_path,
+                        "parsed_fields": parsed_fields, "template_files": template_files
+                    }
+                    st.session_state.dg_step = 'confirm_view'
+                    st.experimental_rerun()
+
+def render_generation_tab():
+    """渲染文件生成介面"""
+    st.subheader("🚀 快速生成文件")
+    template_groups = get_all_template_groups()
+    if not template_groups:
+        st.info("尚未建立任何範本群組，請先至「創建範本」頁籤建立新範本。")
+        return
+
+    group_options = {group['id']: group['name'] for group in template_groups}
+    selected_group_id = st.selectbox("1. 選擇範本群組", options=list(group_options.keys()), format_func=lambda x: group_options[x])
+
+    if selected_group_id:
+        template_files = get_template_files(selected_group_id)
+        if not template_files:
+            st.warning("此範本群組中沒有可用的範本檔案。")
+            return
+            
+        file_options = {f['id']: f['filename'] for f in template_files}
+        selected_file_id = st.selectbox("2. 選擇範本檔案", options=list(file_options.keys()), format_func=lambda x: file_options[x])
+
+        field_definitions = get_field_definitions(selected_group_id)
+        st.markdown("---")
+        st.markdown("##### 3. 填寫欄位內容")
+
+        field_values = {}
+        for i, field in enumerate(field_definitions):
+            key = f"gen_{selected_group_id}_{i}"
+            # 在 description 欄位中檢查 'dropdown_options'，並確保它不是空的 list
+            if 'dropdown_options' in field and field['dropdown_options']:
+                options = field['dropdown_options']
+                field_values[field['name']] = st.selectbox(field['name'], options=options, key=key, help=field.get('description', ''))
+            else:
+                field_values[field['name']] = st.text_input(field['name'], value=field.get('default_value', ''), key=key, help=field.get('description', ''))
+        
+        st.markdown("---")
+
+        if st.button("✨ 生成文件", type="primary", use_container_width=True):
+            selected_file_info = next((f for f in template_files if f['id'] == selected_file_id), None)
+            if selected_file_info:
+                template_path = selected_file_info['filepath']
+                # --- 呼叫已修正的 generate_document 函式 ---
+                output_path = generate_document(template_path, field_values)
+
+                if output_path and os.path.exists(output_path):
+                    output_filename = os.path.basename(output_path)
+                    st.success(f"文件 '{output_filename}' 已成功生成！")
+                    with open(output_path, "rb") as f:
+                        file_type = get_file_type(output_filename)
+                        mime_type = f"application/vnd.openxmlformats-officedocument.{'wordprocessingml.document' if file_type == 'docx' else 'spreadsheetml.sheet'}"
+                        st.download_button(
+                            label=f"📥 下載 {output_filename}",
+                            data=f,
+                            file_name=output_filename,
+                            mime=mime_type,
+                            use_container_width=True
+                        )
+                # 錯誤訊息會由 generate_document 內部顯示，這裡無需再處理
+            else:
+                st.error("選擇的範本檔案不存在，請重新整理。")
+
+
+def render_management_tab():
+    """渲染範本管理介面"""
+    st.subheader("📚 管理現有範本")
+    template_groups = get_all_template_groups()
+    if not template_groups:
+        st.info("目前沒有任何範本群組可供管理。")
+        return
+
+    for group in template_groups:
+        with st.expander(f"**{group['name']}** (ID: {group['id']}) - 包含 {group['file_count']} 個檔案"):
+            st.markdown(f"**來源 Excel:** `{os.path.basename(group['source_excel_path'])}`")
+            st.markdown("---")
+            st.markdown("###### 範本檔案清單:")
+            template_files = get_template_files(group['id'])
+            
+            if not template_files:
+                st.caption("此群組目前沒有範本檔案。")
+            else:
+                for f in template_files:
+                    c1, c2 = st.columns([0.9, 0.1])
+                    c1.text(f"📄 {f['filename']}")
+                    if c2.button("❌", key=f"del_file_{f['id']}", help=f"刪除檔案: {f['filename']}"):
+                        if delete_template_file(f['id']):
+                            st.success(f"已成功刪除檔案: {f['filename']}")
+                            st.experimental_rerun()
+                        else:
+                            st.error("刪除檔案時發生錯誤。")
+
+            st.markdown("---")
+            c1, c2 = st.columns(2)
+            if c1.button("🔄 更新欄位", key=f"update_{group['id']}", use_container_width=True):
+                excel_path = group['source_excel_path']
+                if os.path.exists(excel_path):
+                    st.session_state.confirmation_data = {
+                        "action": "update", "group_id": group['id'], "group_name": group['name'],
+                        "parsed_fields": parse_excel_fields(excel_path)
                     }
                     st.session_state.dg_step = 'confirm_view'
                     st.experimental_rerun()
                 else:
-                    st.error("無法從Excel解析欄位，請檢查檔案格式")
-            else:
-                st.error("請填寫所有欄位並上傳檔案")
+                    st.error(f"錯誤：找不到來源 Excel 檔案 '{excel_path}'。")
 
-# --- 欄位確認視圖 (新建與更新共用) ---
+            if c2.button("🗑️ 刪除整個群組", key=f"delete_{group['id']}", use_container_width=True):
+                if delete_template_group(group['id']):
+                    st.success(f"已成功刪除範本群組: {group['name']}")
+                    st.experimental_rerun()
+                else:
+                    st.error("刪除群組時發生錯誤。")
+
+
 def show_field_confirmation_view():
-    conf_data = st.session_state.get('confirmation_data', {})
-    is_update = conf_data.get('is_update', False)
-    
-    st.subheader("📋 更新並確認欄位定義" if is_update else "📋 確認新建欄位定義")
-    st.info("請確認欄位是否正確，可在此即時修正。")
+    """顯示欄位確認和修改的介面"""
+    data = st.session_state.confirmation_data
+    if not data:
+        st.error("發生錯誤：找不到確認資料。返回主頁面...")
+        st.session_state.dg_step = 'main_view'
+        st.experimental_rerun()
+        return
+
+    action = data['action']
+    title = "建立新範本" if action == 'create' else f"更新範本 '{data['group_name']}'"
+    submit_label = "✅ 確認並建立" if action == 'create' else "✅ 確認並更新"
+
+    st.header(f"🔍 請確認解析的欄位 - {title}")
+    st.info("您可以在此處修改解析出的欄位名稱、預設值和描述。系統會根據這些定義來生成輸入介面。")
 
     with st.form("field_confirmation_form"):
-        fields = conf_data.get('fields', [])
-        for i, field in enumerate(fields):
-            with st.expander(f"欄位 {i+1}: {field.get('name', '')}", expanded=True):
-                if field.get('dropdown_options'):
-                    st.write(f"**{field.get('name', '')}** (下拉選單)")
-                    current_value = field.get('value', '')
-                    options = field['dropdown_options']
-                    index = options.index(current_value) if current_value in options else 0
-                    field['value'] = st.selectbox("選擇一個選項", options, index=index, key=f"dd_{i}")
-                else:
-                    field['name'] = st.text_input("欄位名稱", field.get('name', ''), key=f"name_{i}")
-                    field['value'] = st.text_input("範例值", field.get('value', ''), key=f"value_{i}")
+        df = pd.DataFrame(data['parsed_fields'])
+        # 將 list 轉為 string 才能在 data_editor 中顯示
+        df['dropdown_options'] = df['dropdown_options'].apply(lambda x: ','.join(x) if isinstance(x, list) else x)
 
-                field['description'] = st.text_area("欄位描述", field.get('description', ''), key=f"desc_{i}", height=100)
-        
-        submit_label = "✅ 確認並更新" if is_update else "✅ 確認並建立"
-        c1, c2 = st.columns(2)
+        edited_df = st.data_editor(
+            df,
+            column_config={
+                "name": st.column_config.TextColumn("欄位名稱", required=True),
+                "default_value": "預設值",
+                "description": "欄位描述 (提示)",
+                "dropdown_options": "下拉選單選項 (用逗號分隔)",
+            },
+            num_rows="dynamic", use_container_width=True
+        )
+
+        c1, c2, _ = st.columns([1, 1, 4])
         if c1.form_submit_button(submit_label, type="primary"):
-            if is_update:
-                update_field_definitions(conf_data['group_id'], fields)
-                st.success(f"範本群組 「{conf_data['name']}」 的欄位已成功更新！")
-            else:
-                group_id = create_template_group(conf_data['name'], conf_data['excel_path'], fields)
-                for f in conf_data['template_files']:
-                    path = save_uploaded_file(f, "data/templates")
-                    file_type = get_file_type(f.name)
-                    add_template_file(group_id, f.name, path, file_type)
-                st.success(f"範本群組「{conf_data['name']}」建立成功！")
+            final_fields = edited_df.to_dict('records')
+            # 將 dropdown_options 轉回 list
+            for field in final_fields:
+                if isinstance(field.get('dropdown_options'), str) and field['dropdown_options']:
+                    field['dropdown_options'] = [opt.strip() for opt in field['dropdown_options'].split(',')]
+                else:
+                    field['dropdown_options'] = []
+
+            if action == 'create': handle_final_creation(data, final_fields)
+            else: handle_final_update(data, final_fields)
             
-            del st.session_state.confirmation_data
+            st.session_state.confirmation_data = None
             st.session_state.dg_step = 'main_view'
             st.experimental_rerun()
 
         if c2.form_submit_button("❌ 取消"):
-            del st.session_state.confirmation_data
+            if action == 'create' and os.path.exists(data['source_excel_path']):
+                os.remove(data['source_excel_path'])
+            st.session_state.confirmation_data = None
             st.session_state.dg_step = 'main_view'
             st.experimental_rerun()
 
-# --- 文件生成 Tab ---
-def render_generation_tab():
-    groups = get_all_template_groups()
-    if not groups:
-        st.warning("目前沒有可用的範本，請先創建。")
-        return
 
-    group_options = {f"{g['name']} ({g.get('file_count', 0)}個檔案)": g['id'] for g in groups}
-    selected_group_name = st.selectbox("步驟1: 選擇範本群組", list(group_options.keys()))
-    
-    if not selected_group_name: return
-    selected_group_id = group_options[selected_group_name]
-    
-    template_files = get_template_files(selected_group_id)
-    if not template_files:
-        st.warning("此群組沒有範本檔案。")
-        return
-        
-    file_options = {f"{f['filename']} ({f['file_type']})": f for f in template_files}
-    selected_file_name = st.selectbox("步驟2: 選擇範本檔案", list(file_options.keys()))
-    
-    if not selected_file_name: return
-    selected_file = file_options[selected_file_name]
+# --- 後端處理邏輯 ---
 
-    st.markdown("---")
-    st.markdown("##### 步驟3: 填寫欄位值")
-    fields = get_field_definitions(selected_group_id)
-    if not fields:
-        st.warning("此範本群組沒有定義欄位。")
-        return
+def handle_final_creation(data, final_fields):
+    """處理最終的範本創建邏輯"""
+    try:
+        template_file_paths = [save_uploaded_file(f, TEMPLATE_DIR) for f in data['template_files']]
+        create_template_group(
+            name=data['group_name'], source_excel_path=data['source_excel_path'],
+            field_definitions=final_fields, template_files=template_file_paths
+        )
+        st.success(f"範本群組 '{data['group_name']}' 已成功建立！")
+    except Exception as e:
+        st.error(f"建立範本時發生嚴重錯誤: {e}")
+        # 清理已儲存的檔案
+        if 'template_file_paths' in locals():
+            for path in template_file_paths:
+                if os.path.exists(path): os.remove(path)
+        if os.path.exists(data['source_excel_path']): os.remove(data['source_excel_path'])
 
-    field_values = {}
-    for i, field in enumerate(fields):
-        label = field.get('description') or field['name']
-        if field.get('dropdown_options'):
-            options = field['dropdown_options']
-            current_value = field.get('value', '')
-            index = options.index(current_value) if current_value in options else 0
-            field_values[field['name']] = st.selectbox(label, options, index=index, key=f"gen_dd_{selected_group_id}_{i}")
+def handle_final_update(data, final_fields):
+    """處理最終的欄位更新邏輯"""
+    try:
+        if update_field_definitions(data['group_id'], final_fields):
+            st.success(f"範本群組 '{data['group_name']}' 的欄位已成功更新！")
         else:
-            field_values[field['name']] = st.text_input(label, value=field.get('value', ''), key=f"gen_{selected_group_id}_{i}")
+            st.error("更新欄位時發生錯誤。")
+    except Exception as e:
+        st.error(f"更新欄位時發生嚴重錯誤: {e}")
 
-    if st.button("🎯 生成文件", type="primary"):
-        with st.spinner("正在生成文件..."):
-            output_path = generate_document(selected_file['filepath'], field_values)
-        if output_path:
-            st.success("文件生成成功！")
-            with open(output_path, "rb") as file_data:
-                st.download_button("📥 下載文件", file_data, os.path.basename(output_path))
-        else:
-            st.error("文件生成失敗。")
+# --- 主路由器函式 ---
 
-# --- 範本管理 Tab ---
-def render_management_tab():
-    st.subheader("📚 現有範本群組管理")
-    groups = get_all_template_groups()
-    if not groups:
-        st.info("目前沒有可用的範本群組。")
-        return
-
-    for group in groups:
-        with st.expander(f"📁 {group['name']} ({group.get('file_count', 0)}個檔案)", expanded=True):
-            template_files = get_template_files(group['id'])
-            if not template_files:
-                st.write("此群組尚無範本檔案。")
-            else:
-                for f in template_files:
-                    c1, c2 = st.columns([5, 1])
-                    c1.button
+def show_document_generator():
+    """根據 session state 決定顯示哪個視圖"""
+    initialize_app()
+    page_step = st.session_state.get('dg_step', 'main_view')
+    if page_step == 'confirm_view':
+        show_field_confirmation_view()
+    else:
+        tabs = st.tabs(["🚀 生成文件", "📁 創建範本", "📚 管理範本"])
+        with tabs[0]: render_generation_tab()
+        with tabs[1]: render_creation_tab()
+        with tabs[2]: render_management_tab()

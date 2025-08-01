@@ -1,82 +1,122 @@
 import streamlit as st
 import sys
 import os
+import sqlite3
 
 # --- 路徑與初始化 ---
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from core.database import init_database
+from core.database import init_database, DB_PATH
 
 # --- 頁面配置 ---
 st.set_page_config(
-    page_title="📄 文件比對與範本管理系統",
-    page_icon="📄",
+    page_title="文件比對與範本管理系統",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- 資料庫查詢 (用於統計) ---
+def get_system_stats():
+    """從資料庫獲取系統統計數據"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM template_groups")
+            total_groups = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM template_files")
+            total_files = cursor.fetchone()[0]
+            generated_today = 15 
+            return total_groups, total_files, generated_today
+    except Exception:
+        return 0, 0, 0
 
 # --- 全局樣式 ---
 def apply_global_styles():
     st.markdown("""
         <style>
-            /* 徹底隱藏Streamlit頂部的多頁面導航選單 */
-            div[data-testid="stSidebarNav"] {
-                display: none !important;
+            div[data-testid="stSidebarNav"], header, footer { display: none !important; }
+            .main {
+                background: linear-gradient(135deg, #0d1b2a 0%, #000000 100%);
+                color: #e0e1dd;
             }
-            /* 隱藏 Streamlit 預設 Header 和 Footer */
-            header, footer {
-                visibility: hidden;
+            .main .block-container { padding: 2rem; }
+            [data-testid="stSidebar"] {
+                background: #0d1b2a;
+                border-right: 1px solid #1b263b;
             }
-            .main .block-container {
-                padding: 1rem 2rem 2rem 2rem;
-            }
-            /* 首頁樣式 */
-            .title-container {
-                text-align: center;
-                margin: 1rem 0 2rem 0;
-            }
-            .title-container h1 { font-weight: 700; color: #2c3e50; }
-            .title-container p { color: #576574; font-size: 1.1rem; }
+            .title-container { text-align: center; margin-bottom: 3rem; }
+            .title-container h1 { font-weight: 700; color: #ffffff; letter-spacing: 2px; }
+            .title-container p { color: #778da9; font-size: 1.2rem; }
             .feature-card {
-                background: white;
-                border-radius: 15px;
-                padding: 2rem 1.5rem;
+                background: rgba(27, 38, 59, 0.6);
+                backdrop-filter: blur(10px);
+                border-radius: 20px;
+                padding: 2rem;
                 text-align: center;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-                border: 1px solid #e0e0e0;
-                min-height: 220px;
+                border: 1px solid rgba(129, 153, 189, 0.2);
+                min-height: 230px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
-                margin-top: 1rem;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
             }
-            .feature-card .icon { font-size: 2.5rem; margin-bottom: 1rem; }
-            .feature-card h3 { color: #34495e; font-weight: 600; margin-bottom: 0.5rem; }
-            .feature-card p { color: #7f8c8d; font-size: 0.9rem; line-height: 1.4; }
+            .feature-card:hover {
+                transform: translateY(-10px);
+                box-shadow: 0 0 25px rgba(0, 191, 255, 0.5);
+            }
+            .feature-card .icon { font-size: 3.5rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 5px rgba(0, 191, 255, 0.7));}
+            .feature-card h3 { color: #ffffff; font-weight: 600; }
+            .feature-card p { color: #a9b4c2; font-size: 0.95rem; }
+            .stats-container {
+                margin-top: 3rem;
+                padding: 2rem;
+                background: rgba(27, 38, 59, 0.4);
+                border-radius: 20px;
+                border: 1px solid rgba(129, 153, 189, 0.2);
+            }
+            [data-testid="stMetric"] { background-color: transparent; border-radius: 10px; padding: 1rem; text-align: center; }
+            [data-testid="stMetricLabel"] { color: #778da9; font-weight: 500; }
+            [data-testid="stMetricValue"] { color: #ffffff; font-size: 2.5rem; font-weight: 700; }
         </style>
     """, unsafe_allow_html=True)
 
 # --- 初始化 ---
 def initialize_app():
     init_database()
+    if 'page_selection' not in st.session_state:
+        st.session_state.page_selection = "🏠 系統首頁"
+
+# --- 頁面跳轉函數 ---
+def navigate_to(page_name):
+    st.session_state.page_selection = page_name
+    st.experimental_rerun()
 
 # --- 頁面渲染 ---
 def show_home_page():
-    st.markdown("""
-    <div class="title-container">
-        <h1>📄 文件比對與範本管理系統</h1>
-        <p>一個簡潔的、個人化的文件處理方案</p>
-    </div>
-    """, unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown('<div class="feature-card"><div class="icon">🚀</div><h3>檔案輸入與生成</h3><p>根據範本輸入參數<br>生成標準化文件</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="feature-card"><div class="icon">⚙️</div><h3>範本管理設定</h3><p>範本群組管理<br>有效組織與重複利用</p></div>', unsafe_allow_html=True)
-    with col3:
+    st.markdown('<div class="title-container"><h1>文件比對與範本管理系統</h1><p>一個專業、高效的文件自動化解決方案</p></div>', unsafe_allow_html=True)
+
+    cols = st.columns(3)
+    with cols[0]:
+        st.markdown('<div class="feature-card"><div class="icon">🚀</div><h3>檔案輸入與生成</h3><p>根據範本輸入參數<br>快速生成標準化文件</p></div>', unsafe_allow_html=True)
+        if st.button("前往生成", key="nav_gen", use_container_width=True):
+            navigate_to("📝 智能文件生成與管理")
+    with cols[1]:
+        st.markdown('<div class="feature-card"><div class="icon">⚙️</div><h3>範本管理設定</h3><p>集中管理範本群組<br>有效組織與重複利用</p></div>', unsafe_allow_html=True)
+        if st.button("前往管理", key="nav_mgmt", use_container_width=True):
+            navigate_to("📝 智能文件生成與管理")
+    with cols[2]:
         st.markdown('<div class="feature-card"><div class="icon">🔍</div><h3>文件比對檢查</h3><p>多範本智慧比對<br>自動生成差異清單</p></div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="feature-card"><div class="icon">📄</div><h3>PDF 參數標記</h3><p>視覺化標定參數<br>建立可重複使用範本</p></div>', unsafe_allow_html=True)
+        if st.button("前往比對", key="nav_comp", use_container_width=True):
+            navigate_to("🔍 文件比對")
+
+    st.markdown('<div class="stats-container">', unsafe_allow_html=True)
+    total_groups, total_files, generated_today = get_system_stats()
+    stat_cols = st.columns(3)
+    stat_cols[0].metric(label="📊 總範本群組數", value=total_groups)
+    stat_cols[1].metric(label="📂 總範本檔案數", value=total_files)
+    stat_cols[2].metric(label="📈 今日已生成文件 (模擬)", value=generated_today)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def show_comparison_page():
     st.title("🔍 文件比對系統")
@@ -86,20 +126,28 @@ def show_comparison_page():
 def main():
     apply_global_styles()
     initialize_app()
+    
+    # 讓 session_state 控制 selectbox 的選擇
+    page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
+    try:
+        current_index = page_options.index(st.session_state.page_selection)
+    except ValueError:
+        current_index = 0 # 如果 session state 發生錯誤，預設為首頁
 
     st.sidebar.title("📋 功能選單")
-    page_selection = st.sidebar.selectbox(
-        "選擇功能",
-        ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"],
+    st.session_state.page_selection = st.sidebar.selectbox(
+        "選擇功能", 
+        page_options, 
+        index=current_index,
         key="main_page_selector"
     )
     
-    if page_selection == "🏠 系統首頁":
+    if st.session_state.page_selection == "🏠 系統首頁":
         show_home_page()
-    elif page_selection == "📝 智能文件生成與管理":
+    elif st.session_state.page_selection == "📝 智能文件生成與管理":
         from pages.document_generator import show_document_generator
         show_document_generator()
-    elif page_selection == "🔍 文件比對":
+    elif st.session_state.page_selection == "🔍 文件比對":
         show_comparison_page()
 
 if __name__ == "__main__":
