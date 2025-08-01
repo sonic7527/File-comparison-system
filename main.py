@@ -2,12 +2,13 @@ import streamlit as st
 import os
 import sqlite3
 
-# 移除 sys.path 操作，讓 Streamlit 以標準方式處理路徑
+# --- 核心模組導入 (路徑已更新) ---
 from core.database import init_database, DB_PATH
+from views.document_generator import show_document_generator
 
 # --- 頁面配置 ---
 st.set_page_config(
-    page_title="文件比對與範本管理系統",
+    page_title="北大文件比對與範本管理系統",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -19,9 +20,7 @@ def get_system_stats():
     try:
         if not os.path.exists(os.path.dirname(DB_PATH)):
             os.makedirs(os.path.dirname(DB_PATH))
-        
         init_database()
-        
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM template_groups")
@@ -33,11 +32,12 @@ def get_system_stats():
     except Exception:
         return 0, 0, 0
 
-# --- 全局樣式 ---
+# --- 全局樣式 (已清理) ---
 def apply_global_styles():
     st.markdown("""
         <style>
-            div[data-testid="stSidebarNav"], header, footer { display: none !important; }
+            /* 移除了隱藏 stSidebarNav 的 CSS，因為結構性問題已解決 */
+            header, footer { display: none !important; }
             .main {
                 background: linear-gradient(135deg, #0d1b2a 0%, #000000 100%);
                 color: #e0e1dd;
@@ -97,7 +97,7 @@ def navigate_to(page_name):
 
 # --- 頁面渲染 ---
 def show_home_page():
-    st.markdown('<div class="title-container"><h1>文件比對與範本管理系統</h1><p>一個專業、高效的文件自動化解決方案</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-container"><h1>北大文件比對與範本管理系統</h1><p>一個專業、高效的文件自動化解決方案</p></div>', unsafe_allow_html=True)
 
     cols = st.columns(3)
     with cols[0]:
@@ -125,7 +125,7 @@ def show_comparison_page():
     st.title("🔍 文件比對系統")
     st.info("此功能正在開發中，敬請期待！")
 
-# --- 主程式 ---
+# --- 主程式 (邏輯已更新) ---
 def main():
     apply_global_styles()
     initialize_app()
@@ -147,12 +147,9 @@ def main():
     if st.session_state.page_selection == "🏠 系統首頁":
         show_home_page()
     elif st.session_state.page_selection == "📝 智能文件生成與管理":
-        from pages.document_generator import show_document_generator
         show_document_generator()
     elif st.session_state.page_selection == "🔍 文件比對":
         show_comparison_page()
 
 if __name__ == "__main__":
     main()
-
-# 強制更新觸發器 2
