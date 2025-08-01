@@ -569,17 +569,17 @@ class DocumentGenerator:
                     st.error(f"❌ 不支援的輸出格式：{output_format}")
                     return None
             else:
-                # 根據文件類型處理
+            # 根據文件類型處理
                 file_type = template_file.get('file_type', 'Unknown').lower()
                 if file_type == 'excel':
-                    return self._generate_excel_document(template_path, input_data, output_name)
+                return self._generate_excel_document(template_path, input_data, output_name)
                 elif file_type == 'word':
-                    return self._generate_word_document(template_path, input_data, output_name)
+                return self._generate_word_document(template_path, input_data, output_name)
                 elif file_type == 'pdf':
                     return self._generate_pdf_document(template_path, input_data, output_name)
-                else:
+            else:
                     st.error(f"❌ 不支援的文件類型：{file_type}")
-                    return None
+                return None
                 
         except Exception as e:
             st.error(f"❌ 生成文件失敗：{str(e)}")
@@ -809,14 +809,17 @@ class DocumentGenerator:
                 has_dropdown = self._has_dropdown_options(description)
                 dropdown_options = self._extract_dropdown_options(description) if has_dropdown else []
                 
+                # 判斷是否為必填欄位
+                is_required = bool(input_content.strip()) and input_content != 'nan'
+                
                 field_definitions.append({
                     'field_name': field_name,
                     'field_description': description,
                     'field_type': field_type,
-                    'sample_value': input_content,
+                    'sample_value': input_content if input_content != 'nan' else '',
                     'has_dropdown': has_dropdown,
                     'dropdown_options': dropdown_options,
-                    'is_required': bool(input_content.strip()),  # 如果輸入內容為空，則為選填
+                    'is_required': is_required,  # 如果輸入內容為空或'nan'，則為選填
                     'display_order': index
                 })
             
@@ -828,8 +831,20 @@ class DocumentGenerator:
     
     def _determine_field_type(self, input_content: str, description: str) -> str:
         """判斷欄位類型"""
-        # 檢查是否為電話號碼
-        if '電話' in description or '電話' in input_content:
+        # 清理輸入內容，移除 'nan' 值
+        if input_content == 'nan' or not input_content:
+            input_content = ''
+        
+        # 根據欄位名稱和說明優先判斷
+        field_lower = description.lower()
+        content_lower = input_content.lower()
+        
+        # 優先根據欄位名稱判斷
+        if '案名' in description or '名稱' in description or '地點' in description or '容量' in description:
+            return 'text'
+        
+        # 檢查是否為電話號碼（優先檢查欄位名稱）
+        if '電話' in description:
             return 'phone'
         
         # 檢查是否為電子郵件
@@ -841,23 +856,28 @@ class DocumentGenerator:
         if any(pattern in input_content for pattern in date_patterns):
             return 'date'
         
-        # 檢查是否為純數字（且不包含字母）
-        if input_content and input_content.replace('.', '').replace('-', '').replace('+', '').isdigit():
-            # 如果包含小數點，可能是小數
-            if '.' in input_content:
-                return 'number'
-            # 如果是整數，檢查是否為電話號碼格式
-            elif len(input_content) >= 8 and len(input_content) <= 15:
+        # 數字判斷 - 只有當欄位名稱明確表示是數字時才判斷為數字
+        if input_content and input_content.replace('.', '').replace('-', '').replace('+', '').replace(',', '').isdigit():
+            # 如果欄位說明中包含明確的數字相關詞彙
+            number_keywords = ['數量', '金額', '價格', '費用', '率', '比例', '百分比']
+            if any(keyword in description for keyword in number_keywords):
+                if '.' in input_content:
+                    return 'number'  # 小數
+        else:
+                    return 'number'  # 整數
+            # 電話號碼特別處理 - 長度在8-15位的純數字
+            elif '電話' in description and len(input_content.replace('-', '').replace(' ', '')) >= 8:
                 return 'phone'
             else:
-                return 'number'
+                # 其他情況預設為文字，避免誤判
+                return 'text'
         
         # 預設為文字
         return 'text'
     
     def _has_dropdown_options(self, description: str) -> bool:
         """檢查是否有下拉選單選項"""
-        dropdown_indicators = ['下拉式選單', '下拉選單', '選單', '選項', '是否']
+        dropdown_indicators = ['下拉式選單', '下拉選單', '選單', '選項', '是否', '躉售']
         return any(indicator in description for indicator in dropdown_indicators)
     
     def _extract_dropdown_options(self, description: str) -> List[str]:
@@ -875,8 +895,8 @@ class DocumentGenerator:
             if option:
                 options.append(option)
         
-        # 如果沒有找到數字開頭的選項，檢查是否有「是否」類型的選項
-        if not options and '是否' in description:
+        # 如果沒有找到數字開頭的選項，檢查是否有「是否」或「躉售」類型的選項
+        if not options and ('是否' in description or '躉售' in description):
             # 尋找常見的是否選項
             yes_no_patterns = ['是/否', '是|否', '是、否', '是 否']
             for pattern in yes_no_patterns:
@@ -920,8 +940,8 @@ def document_generator_tab():
             
             with st.form("create_template_group_from_excel"):
                 template_name = st.text_input("範本群組名稱", help="例如：台電送件審查範本")
-                template_description = st.text_area("範本說明", help="描述這個範本的用途")
-                
+                    template_description = st.text_area("範本說明", help="描述這個範本的用途")
+                    
                 st.markdown("---")
                 
                 st.markdown("#### **步驟 1：上傳基本資料**")
@@ -939,9 +959,9 @@ def document_generator_tab():
                     type=['xlsx', 'xls', 'docx', 'doc', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp'],
                     help="支援所有範本格式，系統會自動判斷文件類型與方向。",
                     accept_multiple_files=True
-                )
-                
-                if st.form_submit_button("📤 創建範本群組"):
+                            )
+                    
+                    if st.form_submit_button("📤 創建範本群組"):
                     if template_name and excel_file and template_files:
                         # 自動判斷第一個範本的屬性
                         first_file = template_files[0]
@@ -986,40 +1006,40 @@ def document_generator_tab():
                                 # 處理多個文件上傳
                                 success_count = 0
                                 for template_file in template_files:
-                                    file_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                                file_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                                     current_file_type, current_orientation = generator.get_file_properties(template_file)
-                                    
+                                
                                     if current_file_type == 'Image':
                                         st.info(f"✅ 檢測到圖片文件 {template_file.name}，正在轉換為PDF...")
-                                        
+                                    
                                         temp_img_path = os.path.join(generator.templates_dir, f"temp_{file_timestamp}_{template_file.name}")
-                                        with open(temp_img_path, "wb") as f:
-                                            f.write(template_file.getvalue())
-                                        
+                                    with open(temp_img_path, "wb") as f:
+                                        f.write(template_file.getvalue())
+                                    
                                         final_path = os.path.join(generator.templates_dir, f"template_{file_timestamp}_{template_file.name}.pdf")
                                         success = generator.convert_image_to_pdf(temp_img_path, final_path, "A4", current_orientation)
                                         
-                                        os.remove(temp_img_path)
-                                        
-                                        if success:
-                                            file_name = os.path.basename(final_path)
+                                    os.remove(temp_img_path)
+                                    
+                                    if success:
+                                        file_name = os.path.basename(final_path)
                                             generator.add_template_file(template_group_id, file_name, file_name, 'PDF')
                                             success_count += 1
                                     elif current_file_type != 'Unknown':
-                                        # 直接保存文件
+                                    # 直接保存文件
                                         original_filename, file_extension = os.path.splitext(template_file.name)
                                         file_name = f"template_{file_timestamp}_{original_filename}{file_extension}"
-                                        final_path = os.path.join(generator.templates_dir, file_name)
-                                        
-                                        with open(final_path, "wb") as f:
-                                            f.write(template_file.getvalue())
-                                        
+                                    final_path = os.path.join(generator.templates_dir, file_name)
+                                    
+                                    with open(final_path, "wb") as f:
+                                        f.write(template_file.getvalue())
+                                    
                                         generator.add_template_file(template_group_id, file_name, file_name, current_file_type)
                                         success_count += 1
                                 
                                 if success_count == len(template_files):
                                     st.success(f"✅ 範本群組 '{template_name}' 創建成功，並已成功上傳 {success_count} 個範本檔案！")
-                                else:
+                        else:
                                     st.warning(f"⚠️ 範本群組 '{template_name}' 已創建，但只有 {success_count} / {len(template_files)} 個檔案成功上傳。")
                         else:
                             st.warning("⚠️ 請填寫所有必要欄位並上傳檔案")
@@ -1034,8 +1054,8 @@ def document_generator_tab():
                     col1, col2 = st.columns([4, 1])
                     
                     with col1:
-                        st.write(f"**說明：** {group['description']}")
-                        st.write(f"**基本資料群組：** {group['field_group_name']}")
+                    st.write(f"**說明：** {group['description']}")
+                    st.write(f"**基本資料群組：** {group['field_group_name']}")
                     st.write(f"**文件類型：** {group['template_type']}")
                     st.write(f"**頁面方向：** {'直式' if group['page_orientation'] == 'PORTRAIT' else '橫式'}")
                     st.write(f"**創建時間：** {group['created_at']}")
@@ -1219,19 +1239,19 @@ def document_generator_tab():
                         help="選擇生成文件的格式"
                     )
                 
-                if st.button("🚀 生成文件", type="primary"):
-                    if output_name:
-                        with st.spinner("正在生成文件..."):
+                    if st.button("🚀 生成文件", type="primary"):
+                        if output_name:
+                            with st.spinner("正在生成文件..."):
                             output_path = generator.generate_document_from_template(template_group_id, input_data, output_name, output_format, selected_file_index)
-                            
-                            if output_path and os.path.exists(output_path):
-                                st.success("✅ 文件生成成功！")
                                 
-                                # 提供下載連結
-                                with open(output_path, "rb") as f:
-                                    file_data = f.read()
-                                
-                                file_extension = os.path.splitext(output_path)[1]
+                                if output_path and os.path.exists(output_path):
+                                    st.success("✅ 文件生成成功！")
+                                    
+                                    # 提供下載連結
+                                    with open(output_path, "rb") as f:
+                                        file_data = f.read()
+                                    
+                                    file_extension = os.path.splitext(output_path)[1]
                                 if file_extension == ".xlsx":
                                     mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 elif file_extension == ".docx":
@@ -1240,19 +1260,19 @@ def document_generator_tab():
                                     mime_type = "application/pdf"
                                 else:
                                     mime_type = "application/octet-stream"
-                                
-                                st.download_button(
-                                    label="📥 下載文件",
-                                    data=file_data,
-                                    file_name=f"{output_name}{file_extension}",
-                                    mime=mime_type
-                                )
-                                
-                                st.info(f"📁 文件已儲存至：{output_path}")
-                            else:
-                                st.error("❌ 文件生成失敗")
-                    else:
-                        st.warning("⚠️ 請輸入輸出文件名稱")
+                                    
+                                    st.download_button(
+                                        label="📥 下載文件",
+                                        data=file_data,
+                                        file_name=f"{output_name}{file_extension}",
+                                        mime=mime_type
+                                    )
+                                    
+                                    st.info(f"📁 文件已儲存至：{output_path}")
+                                else:
+                                    st.error("❌ 文件生成失敗")
+                        else:
+                            st.warning("⚠️ 請輸入輸出文件名稱")
             else:
                 st.warning("⚠️ 無法載入範本詳細資訊")
     
