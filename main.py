@@ -154,3 +154,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# 強制更新觸發器
