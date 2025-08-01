@@ -8,7 +8,7 @@ from views.document_generator import show_document_generator
 
 # --- 頁面配置 ---
 st.set_page_config(
-    page_title="文件比對與範本管理系統",
+    page_title="北大文件比對與範本管理系統",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -97,7 +97,7 @@ def navigate_to(page_name):
 
 # --- 頁面渲染 ---
 def show_home_page():
-    st.markdown('<div class="title-container"><h1>文件比對與範本管理系統</h1><p>一個專業、高效的文件自動化解決方案</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-container"><h1>北大文件比對與範本管理系統</h1><p>一個專業、高效的文件自動化解決方案</p></div>', unsafe_allow_html=True)
 
     cols = st.columns(3)
     with cols[0]:
