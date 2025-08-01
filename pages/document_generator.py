@@ -778,8 +778,8 @@ class DocumentGenerator:
     def parse_excel_field_definitions(self, excel_file) -> List[Dict]:
         """解析上傳的Excel檔案，自動創建欄位定義"""
         try:
-            # 讀取Excel檔案
-            df = pd.read_excel(excel_file)
+            # 讀取Excel檔案，並將所有欄位視為字串，避免自動轉換
+            df = pd.read_excel(excel_file, dtype=str).fillna('')
             
             # 檢查是否為三欄格式
             if len(df.columns) < 3:
@@ -798,28 +798,28 @@ class DocumentGenerator:
                 input_content = str(row[input_content_col]).strip()
                 description = str(row[description_col]).strip()
                 
-                # 跳過空行
-                if not field_name or field_name == 'nan':
+                # 跳過沒有欄位名稱的空行
+                if not field_name:
                     continue
                 
-                # 判斷欄位類型
-                field_type = self._determine_field_type(input_content, description)
-                
                 # 判斷是否需要下拉選單
-                has_dropdown = self._has_dropdown_options(description)
-                dropdown_options = self._extract_dropdown_options(description) if has_dropdown else []
+                dropdown_options = self._extract_dropdown_options(description)
+                has_dropdown = bool(dropdown_options)
                 
-                # 判斷是否為必填欄位
-                is_required = bool(input_content.strip()) and input_content != 'nan'
+                # 判斷欄位類型
+                field_type = self._determine_field_type(input_content, field_name, description)
+                
+                # 判斷是否為必填欄位 (只有當範例值不為空時，才視為必填)
+                is_required = bool(input_content)
                 
                 field_definitions.append({
                     'field_name': field_name,
                     'field_description': description,
                     'field_type': field_type,
-                    'sample_value': input_content if input_content != 'nan' else '',
+                    'sample_value': input_content,
                     'has_dropdown': has_dropdown,
                     'dropdown_options': dropdown_options,
-                    'is_required': is_required,  # 如果輸入內容為空或'nan'，則為選填
+                    'is_required': is_required,
                     'display_order': index
                 })
             
@@ -829,86 +829,86 @@ class DocumentGenerator:
             st.error(f"❌ 解析Excel檔案失敗：{str(e)}")
             return []
     
-    def _determine_field_type(self, input_content: str, description: str) -> str:
-        """判斷欄位類型"""
-        # 清理輸入內容，移除 'nan' 值
-        if input_content == 'nan' or not input_content:
-            input_content = ''
-        
-        # 根據欄位名稱和說明優先判斷
-        field_lower = description.lower()
-        content_lower = input_content.lower()
-        
-        # 優先根據欄位名稱判斷
-        if '案名' in description or '名稱' in description or '地點' in description or '容量' in description:
-            return 'text'
-        
-        # 檢查是否為電話號碼（優先檢查欄位名稱）
-        if '電話' in description:
-            return 'phone'
-        
-        # 檢查是否為電子郵件
-        if '@' in input_content:
-            return 'email'
-        
-        # 檢查是否為日期格式
-        date_patterns = ['/', '-', '年', '月', '日']
-        if any(pattern in input_content for pattern in date_patterns):
-            return 'date'
-        
-        # 數字判斷 - 只有當欄位名稱明確表示是數字時才判斷為數字
-        if input_content and input_content.replace('.', '').replace('-', '').replace('+', '').replace(',', '').isdigit():
-            # 如果欄位說明中包含明確的數字相關詞彙
-            number_keywords = ['數量', '金額', '價格', '費用', '率', '比例', '百分比']
-            if any(keyword in description for keyword in number_keywords):
-                if '.' in input_content:
-                    return 'number'  # 小數
-        else:
-                    return 'number'  # 整數
-            # 電話號碼特別處理 - 長度在8-15位的純數字
-            elif '電話' in description and len(input_content.replace('-', '').replace(' ', '')) >= 8:
-                return 'phone'
-            else:
-                # 其他情況預設為文字，避免誤判
+        def _determine_field_type(self, input_content: str, field_name: str, description: str) -> str:
+        """根據輸入內容、欄位名稱和說明判斷欄位類型，更加精確"""
+        # 清理輸入內容
+        input_content = str(input_content).strip()
+        field_name = str(field_name).strip()
+        description = str(description).strip()
+
+        # 關鍵字強制文字類型
+        text_keywords = ['案名', '設置者', '地址', '地點', '容量', '型別', '型式', '種類', '號碼', '區處']
+        for keyword in text_keywords:
+            if keyword in field_name or keyword in description:
                 return 'text'
+
+        # 關鍵字強制電話類型
+        if '電話' in field_name or '電話' in description:
+            return 'phone'
+            
+        # 關鍵字強制日期類型
+        if '日期' in field_name or '日期' in description:
+            try:
+                # 嘗試解析，如果成功就認定為日期
+                pd.to_datetime(input_content)
+                return 'date'
+            except (ValueError, TypeError):
+                pass # 解析失敗，繼續後續判斷
+
+        # 內容判斷
+        if input_content:
+            # 純數字判斷
+            if input_content.replace('.', '', 1).isdigit():
+                return 'number'
+            
+            # 日期格式判斷 (較寬鬆)
+            date_patterns = ['/', '-', '年', '月', '日']
+            if any(pattern in input_content for pattern in date_patterns) and len(input_content) > 5:
+                 try:
+                    pd.to_datetime(input_content)
+                    return 'date'
+                 except (ValueError, TypeError):
+                    return 'text' # 解析失敗，視為文字
         
         # 預設為文字
         return 'text'
     
-    def _has_dropdown_options(self, description: str) -> bool:
-        """檢查是否有下拉選單選項"""
-        dropdown_indicators = ['下拉式選單', '下拉選單', '選單', '選項', '是否', '躉售']
-        return any(indicator in description for indicator in dropdown_indicators)
-    
     def _extract_dropdown_options(self, description: str) -> List[str]:
-        """從說明中提取下拉選單選項"""
+        """從說明中提取下拉選單選項，優先識別數字列表"""
         options = []
-        
-        # 尋找數字開頭的選項（如：1.選項1, 2.選項2）
         import re
-        pattern = r'(\d+\.\s*[^,\n]+)'
+
+        # 尋找數字列表格式，例如 "1. 選項一 2. 選項二" 或 "1.選項一,2.選項二"
+        pattern = r'\d+\.\s*([^,]+?)(?=\s*\d+\.|\s*$)'
         matches = re.findall(pattern, description)
         
-        for match in matches:
-            # 移除數字和點號
-            option = re.sub(r'^\d+\.\s*', '', match).strip()
-            if option:
-                options.append(option)
-        
-        # 如果沒有找到數字開頭的選項，檢查是否有「是否」或「躉售」類型的選項
-        if not options and ('是否' in description or '躉售' in description):
-            # 尋找常見的是否選項
-            yes_no_patterns = ['是/否', '是|否', '是、否', '是 否']
-            for pattern in yes_no_patterns:
-                if pattern in description:
-                    parts = pattern.replace('|', '/').replace('、', '/').split('/')
-                    options.extend([part.strip() for part in parts if part.strip()])
-                    break
-            
-            # 如果還是沒有找到，使用預設的是否選項
-            if not options:
-                options = ['是', '否']
-        
+        if matches:
+            for match in matches:
+                option = match.strip()
+                if option:
+                    options.append(option)
+            return options
+
+        # 如果沒有找到數字列表，再檢查關鍵字
+        keyword_indicators = ['下拉式選單', '下拉選單', '選單', '選項', '是否', '躉售']
+        if any(indicator in description for indicator in keyword_indicators):
+             # 提取冒號或括號後的選項
+            parts = re.split(r'[:：]', description)
+            if len(parts) > 1:
+                option_part = parts[1]
+                # 分割選項
+                raw_options = re.split(r'[,/|、]', option_part)
+                for opt in raw_options:
+                    clean_opt = opt.strip()
+                    if clean_opt:
+                        options.append(clean_opt)
+                if options:
+                    return options
+
+        # 最後檢查是否為"是/否"類型
+        if '是否' in description or '躉售' in description:
+            return ['是', '否']
+
         return options
 
 def document_generator_tab():
