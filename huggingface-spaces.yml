@@ -5,4 +5,5 @@ colorTo: purple
 sdk: docker
 pinned: false
 license: mit
-# 強制使用 Docker 部署 
+# 強制使用 Docker 部署
+# 確保使用 Docker 而不是 Streamlit 
