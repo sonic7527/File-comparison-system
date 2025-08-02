@@ -28,4 +28,4 @@ ENV STREAMLIT_GLOBAL_DEVELOPMENT_MODE=false
 ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 
 # 啟動命令
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"] 
+CMD ["streamlit", "run", "main_app.py", "--server.port=8501", "--server.address=0.0.0.0"] 
