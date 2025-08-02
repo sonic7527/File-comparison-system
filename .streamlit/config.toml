@@ -10,9 +10,14 @@ maxUploadSize = 200
 enableCORS = false
 enableXsrfProtection = false
 headless = true
+fileWatcherType = "none"
 
 [browser]
 gatherUsageStats = false
 
 [global]
 developmentMode = false
+
+[client]
+showErrorDetails = false
+toolbarMode = "minimal"
