@@ -70,12 +70,14 @@ Thumbs.db
 # Generated files (optional - remove if you want to track them)
 generated_files/
 uploads/
-data/excel/
 data/uploaded_excel/
-data/templates/
-data/document_templates/
-data/excel_templates/
-data/pdf_templates/
+
+# Allow template files but exclude other data
+data/excel/*.xlsx
+data/templates/*.xlsx
+data/excel_templates/*.xlsx
+data/document_templates/*.xlsx
+data/pdf_templates/*.pdf
 
 # Environment variables
 .env
