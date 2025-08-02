@@ -29,7 +29,8 @@ def get_system_stats():
             total_files = cursor.fetchone()[0]
             generated_today = 15 
             return total_groups, total_files, generated_today
-    except Exception:
+    except Exception as e:
+        st.error(f"資料庫查詢錯誤: {e}")
         return 0, 0, 0
 
 # --- 全局樣式 (已清理) ---
@@ -130,28 +131,35 @@ def main():
     apply_global_styles()
     initialize_app()
     
-    page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
-    try:
-        current_index = page_options.index(st.session_state.page_selection)
-    except ValueError:
-        current_index = 0
-
+    # 側邊欄導航
     st.sidebar.title("📋 功能選單")
-    st.session_state.page_selection = st.sidebar.selectbox(
+    
+    page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
+    
+    # 使用 session state 來管理頁面選擇，避免重新渲染問題
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "🏠 系統首頁"
+    
+    # 側邊欄選擇器
+    selected_page = st.sidebar.selectbox(
         "選擇功能", 
         page_options, 
-        index=current_index,
-        key="main_page_selector"
+        index=page_options.index(st.session_state.current_page),
+        key="sidebar_nav"
     )
     
-    if st.session_state.page_selection == "🏠 系統首頁":
+    # 更新當前頁面
+    if selected_page != st.session_state.current_page:
+        st.session_state.current_page = selected_page
+        st.rerun()
+    
+    # 根據選擇的頁面顯示內容
+    if st.session_state.current_page == "🏠 系統首頁":
         show_home_page()
-    elif st.session_state.page_selection == "📝 智能文件生成與管理":
+    elif st.session_state.current_page == "📝 智能文件生成與管理":
         show_document_generator()
-    elif st.session_state.page_selection == "🔍 文件比對":
+    elif st.session_state.current_page == "🔍 文件比對":
         show_comparison_page()
 
 if __name__ == "__main__":
-    main()
-
-# 強制更新觸發器 3
+    main() 
