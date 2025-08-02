@@ -2,8 +2,6 @@ title: 北大文件比對與範本管理系統
 emoji: 🤖
 colorFrom: blue
 colorTo: purple
-sdk: streamlit
-sdk_version: 1.28.1
-app_file: app.py
+sdk: docker
 pinned: false
 license: mit 
