@@ -1,9 +1,0 @@
-title: 北大文件比對與範本管理系統
-emoji: 🤖
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
-license: mit
-# 強制使用 Docker 部署
-# 確保使用 Docker 而不是 Streamlit 
