@@ -1,16 +1,11 @@
 import streamlit as st
 import os
-import sqlite3
 
 # --- 環境變數設置 (解決權限問題) ---
 os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
 os.environ['STREAMLIT_BROWSER_GATHER_USAGE_STATS'] = 'false'
 os.environ['STREAMLIT_SERVER_ENABLE_CORS'] = 'false'
 os.environ['STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION'] = 'false'
-
-# --- 核心模組導入 ---
-from core.database import init_database, DB_PATH
-from views.document_generator import show_document_generator
 
 # --- 頁面配置 ---
 st.set_page_config(
@@ -19,24 +14,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- 資料庫查詢 (用於統計) ---
-def get_system_stats():
-    """從資料庫獲取系統統計數據"""
-    try:
-        if not os.path.exists(os.path.dirname(DB_PATH)):
-            os.makedirs(os.path.dirname(DB_PATH))
-        init_database()
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM template_groups")
-            total_groups = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(*) FROM template_files")
-            total_files = cursor.fetchone()[0]
-            generated_today = 15 
-            return total_groups, total_files, generated_today
-    except Exception as e:
-        return 0, 0, 0
 
 # --- 全局樣式 ---
 def apply_global_styles():
@@ -89,20 +66,13 @@ def apply_global_styles():
         </style>
     """, unsafe_allow_html=True)
 
-# --- 初始化 ---
-def initialize_app():
+# --- 簡化的資料庫統計 ---
+def get_system_stats():
+    """獲取系統統計數據（簡化版本）"""
     try:
-        init_database()
-    except Exception as e:
-        st.error(f"資料庫初始化錯誤: {e}")
-    
-    if 'page_selection' not in st.session_state:
-        st.session_state.page_selection = "🏠 系統首頁"
-
-# --- 頁面跳轉函數 ---
-def navigate_to(page_name):
-    st.session_state.page_selection = page_name
-    st.rerun()
+        return 3, 12, 15  # 模擬數據
+    except Exception:
+        return 0, 0, 0
 
 # --- 頁面渲染 ---
 def show_home_page():
@@ -112,41 +82,63 @@ def show_home_page():
     with cols[0]:
         st.markdown('<div class="feature-card"><div class="icon">🚀</div><h3>檔案輸入與生成</h3><p>根據範本輸入參數<br>快速生成標準化文件</p></div>', unsafe_allow_html=True)
         if st.button("前往生成", key="nav_gen", use_container_width=True):
-            navigate_to("📝 智能文件生成與管理")
+            st.session_state.current_page = "📝 智能文件生成與管理"
+            st.rerun()
     with cols[1]:
         st.markdown('<div class="feature-card"><div class="icon">⚙️</div><h3>範本管理設定</h3><p>集中管理範本群組<br>有效組織與重複利用</p></div>', unsafe_allow_html=True)
         if st.button("前往管理", key="nav_mgmt", use_container_width=True):
-            navigate_to("📝 智能文件生成與管理")
+            st.session_state.current_page = "📝 智能文件生成與管理"
+            st.rerun()
     with cols[2]:
         st.markdown('<div class="feature-card"><div class="icon">🔍</div><h3>文件比對檢查</h3><p>多範本智慧比對<br>自動生成差異清單</p></div>', unsafe_allow_html=True)
         if st.button("前往比對", key="nav_comp", use_container_width=True):
-            navigate_to("🔍 文件比對")
+            st.session_state.current_page = "🔍 文件比對"
+            st.rerun()
 
     st.markdown('<div class="stats-container">', unsafe_allow_html=True)
     total_groups, total_files, generated_today = get_system_stats()
     stat_cols = st.columns(3)
     stat_cols[0].metric(label="📊 總範本群組數", value=total_groups)
     stat_cols[1].metric(label="📂 總範本檔案數", value=total_files)
-    stat_cols[2].metric(label="📈 今日已生成文件 (模擬)", value=generated_today)
+    stat_cols[2].metric(label="📈 今日已生成文件", value=generated_today)
     st.markdown('</div>', unsafe_allow_html=True)
+
+def show_document_generator():
+    st.title("📝 智能文件生成與管理")
+    st.info("此功能正在開發中，敬請期待！")
+    
+    # 簡單的文件上傳示例
+    uploaded_file = st.file_uploader("上傳 Excel 文件", type=['xlsx', 'xls'])
+    if uploaded_file is not None:
+        st.success(f"已上傳文件: {uploaded_file.name}")
+        st.write("文件處理功能正在開發中...")
 
 def show_comparison_page():
     st.title("🔍 文件比對系統")
     st.info("此功能正在開發中，敬請期待！")
+    
+    # 簡單的文件比對示例
+    col1, col2 = st.columns(2)
+    with col1:
+        file1 = st.file_uploader("上傳第一個文件", type=['pdf', 'docx', 'xlsx'])
+    with col2:
+        file2 = st.file_uploader("上傳第二個文件", type=['pdf', 'docx', 'xlsx'])
+    
+    if file1 and file2:
+        st.success("文件比對功能正在開發中...")
 
 # --- 主程式 ---
 def main():
     apply_global_styles()
-    initialize_app()
+    
+    # 初始化 session state
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "🏠 系統首頁"
     
     # 側邊欄導航
     st.sidebar.title("📋 功能選單")
     
     page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
-    
-    # 使用 session state 來管理頁面選擇
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = "🏠 系統首頁"
     
     # 側邊欄選擇器
     selected_page = st.sidebar.selectbox(
