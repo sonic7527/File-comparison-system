@@ -1,13 +1,4 @@
 import streamlit as st
-import os
-
-# --- 強制禁用所有可能導致權限問題的功能 ---
-os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
-os.environ['STREAMLIT_BROWSER_GATHER_USAGE_STATS'] = 'false'
-os.environ['STREAMLIT_SERVER_ENABLE_CORS'] = 'false'
-os.environ['STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION'] = 'false'
-os.environ['STREAMLIT_GLOBAL_DEVELOPMENT_MODE'] = 'false'
-os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
 
 # --- 頁面配置 ---
 st.set_page_config(
