@@ -5,14 +5,14 @@ secondaryBackgroundColor = "#1b263b"
 textColor = "#e0e1dd"
 font = "sans serif"
 
-[client]
-showErrorDetails = false
-toolbarMode = "auto"
-
 [server]
 maxUploadSize = 200
 enableCORS = false
 enableXsrfProtection = false
+headless = true
 
 [browser]
 gatherUsageStats = false
+
+[global]
+developmentMode = false

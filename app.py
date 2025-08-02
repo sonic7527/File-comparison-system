@@ -2,6 +2,12 @@ import streamlit as st
 import os
 import sqlite3
 
+# --- 環境變數設置 (解決權限問題) ---
+os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
+os.environ['STREAMLIT_BROWSER_GATHER_USAGE_STATS'] = 'false'
+os.environ['STREAMLIT_SERVER_ENABLE_CORS'] = 'false'
+os.environ['STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION'] = 'false'
+
 # --- 核心模組導入 (路徑已更新) ---
 from core.database import init_database, DB_PATH
 from views.document_generator import show_document_generator
