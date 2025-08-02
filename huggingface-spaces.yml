@@ -4,4 +4,5 @@ colorFrom: blue
 colorTo: purple
 sdk: docker
 pinned: false
-license: mit 
+license: mit
+# 強制使用 Docker 部署 
