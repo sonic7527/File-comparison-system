@@ -120,6 +120,38 @@ def get_comparison_templates() -> list:
                 else:
                     st.warning("⚠️ 資料庫中沒有找到範本記錄")
             
+            # 在雲端環境中，檢查並修復文件路徑
+            if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) and templates:
+                st.info("🔧 正在檢查文件路徑...")
+                templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates")
+                
+                for template in templates:
+                    # 檢查原始路徑是否存在
+                    if not os.path.exists(template['filepath']):
+                        st.warning(f"⚠️ 文件路徑不存在：{template['filepath']}")
+                        
+                        # 嘗試在範本目錄中查找文件
+                        if os.path.exists(templates_dir):
+                            for filename in os.listdir(templates_dir):
+                                if filename.startswith(f"{template['id']}_"):
+                                    new_path = os.path.join(templates_dir, filename)
+                                    st.info(f"✅ 找到文件：{new_path}")
+                                    
+                                    # 更新資料庫中的路徑
+                                    with get_db_connection() as update_conn:
+                                        update_cursor = update_conn.cursor()
+                                        update_cursor.execute(
+                                            "UPDATE comparison_templates SET filepath = ? WHERE id = ?",
+                                            (new_path, template['id'])
+                                        )
+                                        update_conn.commit()
+                                    
+                                    # 更新當前模板的路徑
+                                    template['filepath'] = new_path
+                                    break
+                        else:
+                            st.error(f"❌ 範本目錄不存在：{templates_dir}")
+            
             return templates
     except Exception as e:
         st.error(f"取得範本列表錯誤：{str(e)}")
