@@ -495,14 +495,27 @@ def show_template_management():
         
         st.info(f"🔍 有效範本數量：{len(valid_templates)}")
         
+        st.info(f"🔍 調試信息：valid_templates 長度 = {len(valid_templates)}")
+        st.info(f"🔍 調試信息：valid_templates 內容 = {valid_templates}")
+        
         if valid_templates:
             st.success(f"✅ 找到 {len(valid_templates)} 個有效範本，開始顯示...")
+            st.info("🔍 調試信息：進入 if valid_templates 分支")
+            
             for i, template in enumerate(valid_templates):
-                st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
+                st.info(f"🔍 調試信息：處理範本 {i+1}: {template['name']} (ID: {template['id']})")
+            
+            st.info("🔍 調試信息：開始創建範本卡片...")
             
             for template in valid_templates:
+                st.info(f"🔍 調試信息：創建範本卡片 - {template['name']}")
                 size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template.get('file_size') else "未知"
+                
+                st.info(f"🔍 調試信息：範本 {template['name']} 大小 = {size_mb}")
+                
                 with st.expander(f"📄 {template['name']} ({template.get('file_type', '未知')}, {size_mb})"):
+                    st.info(f"🔍 調試信息：範本 {template['name']} 卡片已創建")
+                    
                     col1, col2, col3 = st.columns([2, 1, 1])
                     
                     with col1:
@@ -510,6 +523,7 @@ def show_template_management():
                         st.write(f"**檔案類型**：{template.get('file_type', '未知')}")
                         st.write(f"**檔案大小**：{size_mb}")
                         st.write(f"**檔案名稱**：{template.get('filename', '未知')}")
+                        st.info(f"🔍 調試信息：範本 {template['name']} 詳情已顯示")
                     
                     with col2:
                         if st.button("🗑️ 刪除", key=f"del_template_{template['id']}", type="secondary"):
@@ -524,6 +538,8 @@ def show_template_management():
                             st.session_state.selected_template_id = template['id']
                             st.session_state.comparison_step = "template_detail"
                             st.rerun()
+            
+            st.success("✅ 所有範本卡片創建完成")
         else:
             st.warning("⚠️ 沒有找到有效的範本記錄")
             st.info("目前沒有已上傳的比對範本。")
