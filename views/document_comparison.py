@@ -939,6 +939,7 @@ def show_document_comparison_main():
     """
     # 強制顯示調試信息
     st.error("🚨 測試：show_document_comparison_main 函數被調用")
+    st.warning("⚠️ 測試：函數內部代碼開始執行")
     
     initialize_comparison()
     
