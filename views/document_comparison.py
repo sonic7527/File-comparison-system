@@ -468,65 +468,102 @@ def show_template_management():
     st.error("🚨 測試：show_template_management 函數被調用")
     st.warning("⚠️ 測試：show_template_management 函數開始執行")
     
+    # 🔍 全面調試信息
+    st.info("🔍 調試信息：show_template_management 函數開始")
+    st.info(f"🔍 調試信息：comparison_step = {st.session_state.get('comparison_step', 'None')}")
+    st.info(f"🔍 調試信息：comparison_mode = {st.session_state.get('comparison_mode', 'None')}")
+    
     st.title("📁 管理比對範本")
     st.markdown("---")
     
+    # 🔍 檢查條件分支
+    st.info("🔍 調試信息：檢查 comparison_step 條件")
+    st.info(f"🔍 調試信息：st.session_state.comparison_step == 'template_list' = {st.session_state.comparison_step == 'template_list'}")
+    
     if st.session_state.comparison_step == "template_list":
+        st.info("🔍 調試信息：進入 template_list 分支")
         st.subheader("📋 已上傳的比對範本")
         
         # 從資料庫獲取實際範本列表
-        st.info("🔍 調試信息：範本管理頁面開始")
+        st.info("🔍 調試信息：開始調用 get_comparison_templates()")
         available_templates = get_comparison_templates()
+        st.info("🔍 調試信息：get_comparison_templates() 調用完成")
         
         # 直接顯示調試信息
         st.info("🔍 調試信息：範本管理頁面")
-        st.info(f"資料庫查詢結果：{len(available_templates)} 個範本")
-        st.info(f"available_templates 類型：{type(available_templates)}")
-        st.info(f"available_templates 內容：{available_templates}")
+        st.info(f"🔍 調試信息：資料庫查詢結果：{len(available_templates)} 個範本")
+        st.info(f"🔍 調試信息：available_templates 類型：{type(available_templates)}")
+        st.info(f"🔍 調試信息：available_templates 內容：{available_templates}")
         
         # 檢查範本列表的有效性
+        st.info("🔍 調試信息：開始檢查範本有效性")
         valid_templates = []
         if available_templates:
-            for template in available_templates:
+            st.info(f"🔍 調試信息：available_templates 不為空，開始遍歷")
+            for i, template in enumerate(available_templates):
+                st.info(f"🔍 調試信息：檢查範本 {i+1}: {template}")
                 if template and isinstance(template, dict) and 'name' in template and 'id' in template:
+                    st.info(f"🔍 調試信息：範本 {i+1} 有效，添加到 valid_templates")
                     valid_templates.append(template)
                 else:
                     st.warning(f"⚠️ 發現無效範本記錄：{template}")
+        else:
+            st.info("🔍 調試信息：available_templates 為空")
         
-        st.info(f"🔍 有效範本數量：{len(valid_templates)}")
-        
+        st.info(f"🔍 調試信息：有效範本數量：{len(valid_templates)}")
         st.info(f"🔍 調試信息：valid_templates 長度 = {len(valid_templates)}")
         st.info(f"🔍 調試信息：valid_templates 內容 = {valid_templates}")
         
+        # 🔍 檢查條件判斷
+        st.info("🔍 調試信息：檢查 valid_templates 條件")
+        st.info(f"🔍 調試信息：valid_templates 是否為真 = {bool(valid_templates)}")
+        st.info(f"🔍 調試信息：len(valid_templates) > 0 = {len(valid_templates) > 0}")
+        st.info(f"🔍 調試信息：valid_templates and len(valid_templates) > 0 = {valid_templates and len(valid_templates) > 0}")
+        
         if valid_templates:
-            st.success(f"✅ 找到 {len(valid_templates)} 個有效範本，開始顯示...")
             st.info("🔍 調試信息：進入 if valid_templates 分支")
+            st.success(f"✅ 找到 {len(valid_templates)} 個有效範本，開始顯示...")
             
+            # 🔍 遍歷並顯示範本
+            st.info("🔍 調試信息：開始遍歷 valid_templates")
             for i, template in enumerate(valid_templates):
                 st.info(f"🔍 調試信息：處理範本 {i+1}: {template['name']} (ID: {template['id']})")
             
             st.info("🔍 調試信息：開始創建範本卡片...")
             
-            for template in valid_templates:
-                st.info(f"🔍 調試信息：創建範本卡片 - {template['name']}")
+            for i, template in enumerate(valid_templates):
+                st.info(f"🔍 調試信息：創建範本卡片 {i+1} - {template['name']}")
                 size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template.get('file_size') else "未知"
                 
                 st.info(f"🔍 調試信息：範本 {template['name']} 大小 = {size_mb}")
+                st.info(f"🔍 調試信息：準備創建 expander 組件")
                 
-                with st.expander(f"📄 {template['name']} ({template.get('file_type', '未知')}, {size_mb})"):
-                    st.info(f"🔍 調試信息：範本 {template['name']} 卡片已創建")
+                # 🔍 檢查 expander 創建
+                expander_title = f"📄 {template['name']} ({template.get('file_type', '未知')}, {size_mb})"
+                st.info(f"🔍 調試信息：expander 標題 = {expander_title}")
+                
+                with st.expander(expander_title):
+                    st.info(f"🔍 調試信息：範本 {template['name']} expander 已創建")
                     
+                    # 🔍 檢查列創建
+                    st.info(f"🔍 調試信息：創建列佈局")
                     col1, col2, col3 = st.columns([2, 1, 1])
+                    st.info(f"🔍 調試信息：列佈局創建完成")
                     
                     with col1:
+                        st.info(f"🔍 調試信息：進入 col1")
                         st.write(f"**上傳日期**：{template.get('created_at', '未知')}")
                         st.write(f"**檔案類型**：{template.get('file_type', '未知')}")
                         st.write(f"**檔案大小**：{size_mb}")
                         st.write(f"**檔案名稱**：{template.get('filename', '未知')}")
-                        st.info(f"🔍 調試信息：範本 {template['name']} 詳情已顯示")
+                        st.info(f"🔍 調試信息：範本 {template['name']} 詳情已顯示在 col1")
                     
                     with col2:
-                        if st.button("🗑️ 刪除", key=f"del_template_{template['id']}", type="secondary"):
+                        st.info(f"🔍 調試信息：進入 col2")
+                        delete_button = st.button("🗑️ 刪除", key=f"del_template_{template['id']}", type="secondary")
+                        st.info(f"🔍 調試信息：刪除按鈕創建完成，key = del_template_{template['id']}")
+                        if delete_button:
+                            st.info(f"🔍 調試信息：刪除按鈕被點擊")
                             if delete_comparison_template(template['id']):
                                 st.success(f"✅ 已刪除範本：{template['name']}")
                                 st.rerun()
@@ -534,15 +571,41 @@ def show_template_management():
                                 st.error("刪除失敗，請重試")
                     
                     with col3:
-                        if st.button("🔍 查看詳情", key=f"view_template_{template['id']}", type="secondary"):
+                        st.info(f"🔍 調試信息：進入 col3")
+                        view_button = st.button("🔍 查看詳情", key=f"view_template_{template['id']}", type="secondary")
+                        st.info(f"🔍 調試信息：查看詳情按鈕創建完成，key = view_template_{template['id']}")
+                        if view_button:
+                            st.info(f"🔍 調試信息：查看詳情按鈕被點擊")
                             st.session_state.selected_template_id = template['id']
                             st.session_state.comparison_step = "template_detail"
                             st.rerun()
+                    
+                    st.info(f"🔍 調試信息：範本 {template['name']} 卡片創建完成")
             
             st.success("✅ 所有範本卡片創建完成")
+            st.info("🔍 調試信息：if valid_templates 分支執行完成")
         else:
+            st.info("🔍 調試信息：進入 else 分支")
             st.warning("⚠️ 沒有找到有效的範本記錄")
             st.info("目前沒有已上傳的比對範本。")
+            st.info("🔍 調試信息：else 分支執行完成")
+        
+        # 返回按鈕
+        st.info("🔍 調試信息：創建返回按鈕")
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if st.button("⬅️ 返回主選單", use_container_width=True):
+                st.session_state.comparison_mode = None
+                st.session_state.comparison_step = None
+                st.rerun()
+        
+        st.info("🔍 調試信息：template_list 分支執行完成")
+    else:
+        st.info(f"🔍 調試信息：comparison_step 不是 'template_list'，當前值為：{st.session_state.get('comparison_step', 'None')}")
+        st.info("🔍 調試信息：顯示默認內容")
+        st.info("目前沒有已上傳的比對範本。")
+    
+    st.info("🔍 調試信息：show_template_management 函數執行完成")
         
         # 返回按鈕
         col1, col2 = st.columns([1, 3])
