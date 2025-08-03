@@ -595,6 +595,10 @@ def show_comparison_selection():
         st.subheader("📋 步驟 2：選擇比對範本")
         st.info("請選擇要使用的比對範本。")
         
+        # 調試信息
+        st.info("🔍 調試信息：在比對範本選擇頁面")
+        st.info(f"comparison_step: {st.session_state.get('comparison_step', 'None')}")
+        
         # 從資料庫獲取實際範本列表
         available_templates = get_comparison_templates()
         
