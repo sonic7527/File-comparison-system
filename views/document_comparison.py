@@ -418,6 +418,9 @@ def show_template_management():
     """
     顯示範本管理界面
     """
+    st.error("🚨 測試：show_template_management 函數被調用")
+    st.warning("⚠️ 測試：show_template_management 函數開始執行")
+    
     st.title("📁 管理比對範本")
     st.markdown("---")
     
