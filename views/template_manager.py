@@ -81,7 +81,7 @@ def show_template_manager():
                     if sub_col2.button("❌", key=f"del_file_{f['id']}", help=f"刪除檔案: {f['filename']}"):
                         if delete_template_file(f['id']):
                             st.success(f"已刪除檔案: {f['filename']}")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("刪除檔案失敗")
             
@@ -114,7 +114,7 @@ def show_template_manager():
                             conn.commit()
                         
                         st.success(f"已成功新增範本檔案: {new_template.name}")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"新增範本失敗: {str(e)}")
         
@@ -152,7 +152,7 @@ def show_template_manager():
             if st.button("🗑️ 刪除群組", key=f"delete_group_{selected_group_id}", type="secondary"):
                 if delete_template_group(selected_group_id):
                     st.success(f"已刪除範本群組: {selected_group['name']}")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("刪除群組失敗")
     

@@ -21,16 +21,22 @@ class TursoDatabase:
             turso_token = st.secrets.get("turso", {}).get("token")
             
             if turso_url and turso_token:
-                self.client = create_client(
-                    url=turso_url,
-                    auth_token=turso_token
-                )
-                st.success("✅ 已連接到 Turso 雲端資料庫")
+                # 檢查 libsql_client 是否可用
+                try:
+                    from libsql_client import create_client
+                    self.client = create_client(
+                        url=turso_url,
+                        auth_token=turso_token
+                    )
+                    st.success("✅ 已連接到 Turso 雲端資料庫")
+                except ImportError:
+                    st.warning("⚠️ libsql_client 模組未安裝，將使用本地 SQLite")
+                    self.client = None
             else:
                 st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
                 self.client = None
         except Exception as e:
-            st.error(f"❌ Turso 連接失敗：{str(e)}")
+            st.warning(f"⚠️ Turso 連接失敗，將使用本地 SQLite：{str(e)}")
             self.client = None
     
     def is_cloud_mode(self) -> bool:
