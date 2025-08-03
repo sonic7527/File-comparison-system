@@ -481,13 +481,14 @@ def show_template_management():
         # 直接顯示調試信息
         st.info("🔍 調試信息：範本管理頁面")
         st.info(f"資料庫查詢結果：{len(available_templates)} 個範本")
-        if available_templates:
+        st.info(f"available_templates 類型：{type(available_templates)}")
+        st.info(f"available_templates 內容：{available_templates}")
+        
+        if available_templates and len(available_templates) > 0:
+            st.success(f"✅ 找到 {len(available_templates)} 個範本，開始顯示...")
             for i, template in enumerate(available_templates):
                 st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
-        else:
-            st.warning("⚠️ 資料庫中沒有找到範本記錄")
-        
-        if available_templates:
+            
             for template in available_templates:
                 size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template['file_size'] else "未知"
                 with st.expander(f"📄 {template['name']} ({template['file_type']}, {size_mb})"):
@@ -513,6 +514,7 @@ def show_template_management():
                             st.session_state.comparison_step = "template_detail"
                             st.rerun()
         else:
+            st.warning("⚠️ 資料庫中沒有找到範本記錄")
             st.info("目前沒有已上傳的比對範本。")
         
         # 返回按鈕
