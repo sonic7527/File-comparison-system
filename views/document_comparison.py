@@ -16,7 +16,12 @@ def setup_comparison_database():
     from core.database import init_database
     init_database()  # 確保資料庫和表格已創建
     
-    templates_dir = "data/comparison_templates"
+    # 在雲端部署時使用臨時目錄
+    if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+        templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates")
+    else:
+        templates_dir = "data/comparison_templates"
+    
     os.makedirs(templates_dir, exist_ok=True)
     
     return templates_dir

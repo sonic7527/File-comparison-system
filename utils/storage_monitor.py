@@ -39,9 +39,18 @@ def get_template_storage_usage():
     """
     計算範本相關的儲存使用量
     """
+    # 在雲端部署時使用臨時目錄
+    if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+        import tempfile
+        comparison_dir = os.path.join(tempfile.gettempdir(), "comparison_templates")
+        uploads_dir = os.path.join(tempfile.gettempdir(), "uploads/templates")
+    else:
+        comparison_dir = "data/comparison_templates"
+        uploads_dir = "uploads/templates"
+    
     template_dirs = {
-        "智能生成範本": ["uploads/templates"],  # 只計算用戶上傳的智能生成範本
-        "比對範本": ["data/comparison_templates"]  # 修復：使用正確的比對範本目錄
+        "智能生成範本": [uploads_dir],  # 只計算用戶上傳的智能生成範本
+        "比對範本": [comparison_dir]  # 修復：使用正確的比對範本目錄
     }
     
     usage_by_type = {}

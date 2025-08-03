@@ -3,7 +3,17 @@ import os
 import json
 from typing import List, Dict
 
-DB_PATH = "data/templates.db"
+# 在雲端部署時使用臨時目錄
+import tempfile
+import os
+
+# 檢查是否在Streamlit Cloud環境中
+if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+    # 雲端環境：使用臨時目錄
+    DB_PATH = os.path.join(tempfile.gettempdir(), "templates.db")
+else:
+    # 本地環境：使用data目錄
+    DB_PATH = "data/templates.db"
 
 def get_db_connection():
     """建立並返回資料庫連線，啟用外鍵約束"""
