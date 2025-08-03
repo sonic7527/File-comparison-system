@@ -32,7 +32,7 @@ def setup_comparison_database():
 
 def save_comparison_template(name: str, description: str, uploaded_file, file_type: str) -> int:
     """
-    儲存比對範本 (已修正路徑處理)
+    儲存比對範本 (支援本地和雲端同步)
     """
     try:
         templates_dir = setup_comparison_database()
@@ -42,6 +42,7 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
         file_size = uploaded_file.tell()
         uploaded_file.seek(0)
         
+        # 本地保存
         with get_db_connection() as conn:
             cursor = conn.cursor()
             # 先插入紀錄，取得 ID
@@ -61,7 +62,6 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
                 f.write(uploaded_file.read())
             
             # 將穩定的相對路徑存回資料庫
-            # 我們儲存相對於專案根目錄的路徑字串，以便跨平台使用
             relative_path = str(template_path.relative_to(ROOT_DIR))
             
             cursor.execute(
@@ -69,7 +69,33 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
                 (relative_path, template_id)
             )
             conn.commit()
+        
+        # 嘗試同步到雲端
+        try:
+            from core.turso_database import turso_db
+            from core.github_storage import github_storage
             
+            if turso_db.is_cloud_mode():
+                # 上傳檔案到 GitHub
+                if github_storage.is_cloud_mode():
+                    github_url = github_storage.upload_file(str(template_path), template_filename)
+                    if github_url:
+                        # 保存到 Turso
+                        turso_db.save_comparison_template(
+                            name=name,
+                            filename=uploaded_file.name,
+                            filepath=github_url,  # 使用 GitHub URL
+                            file_type=file_type,
+                            file_size=file_size
+                        )
+                        st.success("✅ 範本已同步到雲端")
+                    else:
+                        st.warning("⚠️ 檔案上傳到 GitHub 失敗，但本地保存成功")
+                else:
+                    st.warning("⚠️ GitHub 存儲未配置，僅保存到本地")
+        except Exception as e:
+            st.warning(f"⚠️ 雲端同步失敗，但本地保存成功: {str(e)}")
+        
         return template_id
     except sqlite3.IntegrityError:
         st.error(f"範本儲存錯誤：範本名稱 '{name}' 已存在。")
@@ -80,23 +106,30 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
 
 def get_comparison_templates() -> list:
     """
-    獲取所有比對範本 (加入偵錯碼)
+    獲取所有比對範本 (支援 Turso 和本地 SQLite)
     """
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
-            templates = [dict(row) for row in cursor.fetchall()]
-
-            # ---- ↓↓↓ 這是我們需要的關鍵偵錯碼 ↓↓↓ ----
-            st.warning("--- 偵錯資訊：從 comparison_templates 表格撈取的原始資料 ---")
-            st.write("執行的函數: get_comparison_templates in document_comparison.py")
-            st.write("從資料庫撈出的原始資料 (Raw data from DB):", templates)
-            st.info(f"抓到的比對範本數量: {len(templates)}")
-            st.warning("--- 偵錯結束 ---")
-            # ---- ↑↑↑ 偵錯碼結束 ↑↑↑ ----
+        # 嘗試使用 Turso 雲端資料庫
+        from core.turso_database import turso_db
+        
+        if turso_db.is_cloud_mode():
+            # 雲端模式：使用 Turso
+            turso_db.create_tables()
+            templates = turso_db.get_comparison_templates()
             
+            # 顯示雲端統計
+            st.info(f"🌐 雲端範本數量: {len(templates)}")
             return templates
+        else:
+            # 本地模式：使用 SQLite
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
+                templates = [dict(row) for row in cursor.fetchall()]
+                
+                # 顯示本地統計
+                st.info(f"💻 本地範本數量: {len(templates)}")
+                return templates
     except Exception as e:
         st.error(f"取得範本列表錯誤：{str(e)}")
         return []
