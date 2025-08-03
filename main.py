@@ -236,6 +236,7 @@ def show_home_page():
         st.warning("容量監控暫時無法載入，請稍後再試")
 
 def show_comparison_page():
+    st.info("🔍 調試信息：show_comparison_page 被調用")
     show_document_comparison_main()
 
 # --- 主程式 (邏輯已更新) ---
