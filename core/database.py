@@ -2,21 +2,28 @@ import sqlite3
 import os
 import json
 from typing import List, Dict
+from pathlib import Path # 引入 pathlib
 
-# 在雲端部署時使用臨時目錄
-import tempfile
-import os
+# --- 核心修改區域 START ---
 
-# 檢查是否在Streamlit Cloud環境中
-if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
-    # 雲端環境：使用臨時目錄
-    DB_PATH = os.path.join(tempfile.gettempdir(), "templates.db")
-else:
-    # 本地環境：使用data目錄
-    DB_PATH = "data/templates.db"
+# 建立一個指向專案根目錄的絕對路徑
+# Path(__file__) 是指目前這個 database.py 檔案的路徑
+# .parent 是它的上一層目錄 (core)
+# .parent.parent 就是我們需要的專案根目錄
+ROOT_DIR = Path(__file__).parent.parent 
+
+# 無論在哪個系統，都從專案根目錄組合出正確的資料庫路徑
+# 這裡假設您的資料庫檔案名稱是 templates.db
+DB_PATH = ROOT_DIR / "data" / "templates.db"
+
+# --- 核心修改區域 END ---
+
 
 def get_db_connection():
     """建立並返回資料庫連線，啟用外鍵約束"""
+    # 連接前確保資料庫所在的目錄存在
+    os.makedirs(DB_PATH.parent, exist_ok=True)
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row # 讓我們可以用欄位名稱存取資料
     conn.execute("PRAGMA foreign_keys = ON;")
@@ -24,7 +31,7 @@ def get_db_connection():
 
 def init_database():
     """初始化資料庫和表格"""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    # os.makedirs(os.path.dirname(DB_PATH), exist_ok=True) # 這行已移至 get_db_connection
     with get_db_connection() as conn:
         cursor = conn.cursor()
         # 建立範本群組表格
@@ -235,7 +242,7 @@ def update_template_group_fields(group_id: int) -> List[Dict]:
             
             # 重新解析Excel檔案
             import pandas as pd
-            df = pd.read_excel(excel_path, header=None)  # 不使用標題行
+            df = pd.read_excel(excel_path, header=None) # 不使用標題行
             
             # 提取欄位定義
             field_definitions = []
@@ -275,7 +282,7 @@ def update_template_group_fields(group_id: int) -> List[Dict]:
                 return field_definitions
             else:
                 return None
-                
+                    
     except Exception as e:
         print(f"重新解析欄位時發生錯誤: {str(e)}")
         return None
