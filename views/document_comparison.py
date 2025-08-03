@@ -122,6 +122,53 @@ def get_comparison_templates() -> list:
                     st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
             else:
                 st.warning("⚠️ 資料庫中沒有找到範本記錄")
+                
+                # 🔧 直接解決方案：如果資料庫沒有記錄，但文件存在，則重建記錄
+                st.info("🔧 嘗試重建範本記錄...")
+                templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates") if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) else "data/comparison_templates"
+                
+                if os.path.exists(templates_dir):
+                    st.info(f"🔍 檢查範本目錄：{templates_dir}")
+                    files = os.listdir(templates_dir)
+                    st.info(f"🔍 目錄中有 {len(files)} 個文件")
+                    
+                    for filename in files:
+                        st.info(f"🔍 發現文件：{filename}")
+                        # 嘗試從文件名解析範本信息
+                        if "_" in filename:
+                            try:
+                                # 假設文件名格式為 "ID_名稱.擴展名"
+                                parts = filename.split("_", 1)
+                                if len(parts) == 2:
+                                    template_id = int(parts[0])
+                                    name_with_ext = parts[1]
+                                    name = os.path.splitext(name_with_ext)[0]
+                                    file_ext = os.path.splitext(name_with_ext)[1]
+                                    file_type = file_ext.upper().replace('.', '')
+                                    file_path = os.path.join(templates_dir, filename)
+                                    file_size = os.path.getsize(file_path)
+                                    
+                                    st.info(f"🔧 重建範本記錄：ID={template_id}, 名稱={name}, 類型={file_type}")
+                                    
+                                    # 插入資料庫記錄
+                                    with get_db_connection() as insert_conn:
+                                        insert_cursor = insert_conn.cursor()
+                                        insert_cursor.execute(
+                                            "INSERT OR IGNORE INTO comparison_templates (id, name, filename, filepath, file_type, file_size) VALUES (?, ?, ?, ?, ?, ?)",
+                                            (template_id, name, filename, file_path, file_type, file_size)
+                                        )
+                                        insert_conn.commit()
+                                    
+                                    st.success(f"✅ 成功重建範本記錄：{name}")
+                            except Exception as e:
+                                st.error(f"❌ 重建範本記錄失敗：{str(e)}")
+                    
+                    # 重新查詢資料庫
+                    cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
+                    templates = [dict(row) for row in cursor.fetchall()]
+                    st.info(f"🔍 重建後查詢到 {len(templates)} 個範本")
+                else:
+                    st.error(f"❌ 範本目錄不存在：{templates_dir}")
             
             # 在雲端環境中，檢查並修復文件路徑
             if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) and templates:
