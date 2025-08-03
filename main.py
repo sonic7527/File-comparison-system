@@ -237,7 +237,12 @@ def show_home_page():
 
 def show_comparison_page():
     st.info("🔍 調試信息：show_comparison_page 被調用")
-    show_document_comparison_main()
+    st.error("🚨 測試：show_comparison_page 函數開始執行")
+    try:
+        show_document_comparison_main()
+        st.success("✅ 測試：show_document_comparison_main 函數調用成功")
+    except Exception as e:
+        st.error(f"❌ 測試：show_document_comparison_main 函數調用失敗 - {str(e)}")
 
 # --- 主程式 (邏輯已更新) ---
 def main():
