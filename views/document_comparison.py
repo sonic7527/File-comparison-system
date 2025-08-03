@@ -935,6 +935,11 @@ def show_document_comparison_main():
     """
     initialize_comparison()
     
+    # 直接調試信息
+    st.info("🔍 調試信息：主入口函數被調用")
+    st.info(f"comparison_mode: {st.session_state.get('comparison_mode', 'None')}")
+    st.info(f"comparison_step: {st.session_state.get('comparison_step', 'None')}")
+    
     # 返回按鈕
     col1, col2 = st.columns([1, 4])
     with col1:
@@ -949,11 +954,15 @@ def show_document_comparison_main():
     
     # 根據模式顯示不同界面
     if st.session_state.comparison_mode == "upload_template":
+        st.info("🔍 調試信息：進入上傳範本模式")
         show_template_upload()
     elif st.session_state.comparison_mode == "manage_templates":
+        st.info("🔍 調試信息：進入管理範本模式")
         show_template_management()
     elif st.session_state.comparison_mode == "compare_templates":
+        st.info("🔍 調試信息：進入比對範本模式")
         show_comparison_selection()
     else:
+        st.info("🔍 調試信息：顯示主界面")
         # 確保顯示主界面（三個選項）
         show_document_comparison() 
