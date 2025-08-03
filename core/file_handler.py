@@ -26,6 +26,7 @@ def save_uploaded_file(uploaded_file, directory):
 def parse_excel_fields(excel_path):
     """
     解析Excel欄位，並支援從第三欄的說明中提取下拉選單選項。
+    跳過第一行（標題行）。
     """
     try:
         df = pd.read_excel(excel_path, header=None)
@@ -34,8 +35,12 @@ def parse_excel_fields(excel_path):
 
         field_definitions = []
         for index, row in df.iterrows():
+            # 跳過第一行（標題行）
+            if index == 0:
+                continue
+                
             field_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else None
-            if not field_name:
+            if not field_name or field_name == 'nan':
                 continue
 
             field_value = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
@@ -63,7 +68,7 @@ def parse_excel_fields(excel_path):
             
             field_definitions.append({
                 'name': field_name,
-                'value': field_value,
+                'default_value': field_value,
                 'description': description,
                 'dropdown_options': dropdown_options # 新增欄位
             })

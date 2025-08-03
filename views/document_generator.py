@@ -121,54 +121,8 @@ def render_generation_tab():
 
 def render_management_tab():
     """渲染範本管理介面"""
-    st.subheader("📚 管理現有範本")
-    template_groups = get_all_template_groups()
-    if not template_groups:
-        st.info("目前沒有任何範本群組可供管理。")
-        return
-
-    for group in template_groups:
-        with st.expander(f"**{group['name']}** (ID: {group['id']}) - 包含 {group['file_count']} 個檔案"):
-            st.markdown(f"**來源 Excel:** `{os.path.basename(group['source_excel_path'])}`")
-            st.markdown("---")
-            st.markdown("###### 範本檔案清單:")
-            template_files = get_template_files(group['id'])
-
-            if not template_files:
-                st.caption("此群組目前沒有範本檔案。")
-            else:
-                for f in template_files:
-                    c1, c2 = st.columns([0.9, 0.1])
-                    c1.text(f"📄 {f['filename']}")
-                    if c2.button("❌", key=f"del_file_{f['id']}", help=f"刪除檔案: {f['filename']}"):
-                        if delete_template_file(f['id']):
-                            st.success(f"已成功刪除檔案: {f['filename']}")
-                            st.rerun()
-                        else:
-                            st.error("刪除檔案時發生錯誤。")
-
-            st.markdown("---")
-            c1, c2 = st.columns(2)
-            if c1.button("🔄 更新欄位", key=f"update_{group['id']}", use_container_width=True):
-                excel_path = group['source_excel_path']
-                if os.path.exists(excel_path):
-                    st.session_state.confirmation_data = {
-                        "action": "update",
-                        "group_id": group['id'],
-                        "group_name": group['name'],
-                        "parsed_fields": parse_excel_fields(excel_path)
-                    }
-                    st.session_state.dg_step = 'confirm_view'
-                    st.rerun()
-                else:
-                    st.error(f"錯誤：找不到來源 Excel 檔案 '{excel_path}'。")
-
-            if c2.button("🗑️ 刪除整個群組", key=f"delete_{group['id']}", use_container_width=True):
-                if delete_template_group(group['id']):
-                    st.success(f"已成功刪除範本群組: {group['name']}")
-                    st.rerun()
-                else:
-                    st.error("刪除群組時發生錯誤。")
+    from views.template_manager import show_template_manager
+    show_template_manager()
 
 def show_field_confirmation_view():
     """顯示欄位確認和修改的介面"""
@@ -258,16 +212,35 @@ def handle_final_update(data, final_fields):
         st.error(f"更新欄位時發生嚴重錯誤: {e}")
 
 def show_document_generator():
-    """根據 session state 決定顯示哪個視圖"""
+    """
+    顯示文件生成器主界面
+    """
+    # 返回按鈕
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("⬅️ 返回首頁", key="back_to_home_dg"):
+            st.session_state.page_selection = "🏠 系統首頁"
+            st.rerun()
+    
+    st.title("📝 智能文件生成與管理")
+    st.markdown("---")
+    
+    # 初始化應用程式
     initialize_app()
-    page_step = st.session_state.get('dg_step', 'main_view')
-    if page_step == 'confirm_view':
+    
+    # 檢查是否需要顯示確認視圖
+    if st.session_state.get('dg_step') == 'confirm_view':
         show_field_confirmation_view()
-    else:
-        tabs = st.tabs(["🚀 生成文件", "📁 創建範本", "📚 管理範本"])
-        with tabs[0]:
-            render_generation_tab()
-        with tabs[1]:
-            render_creation_tab()
-        with tabs[2]:
-            render_management_tab()
+        return
+    
+    # 創建分頁
+    tab1, tab2, tab3 = st.tabs(["🚀 創建範本", "📄 生成文件", "⚙️ 範本管理"])
+    
+    with tab1:
+        render_creation_tab()
+    
+    with tab2:
+        render_generation_tab()
+    
+    with tab3:
+        render_management_tab()

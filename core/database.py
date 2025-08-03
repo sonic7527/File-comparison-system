@@ -51,6 +51,19 @@ def init_database():
             FOREIGN KEY (group_id) REFERENCES template_groups (id) ON DELETE CASCADE
         );
         """)
+        
+        # 建立比對範本表格
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS comparison_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            filename TEXT NOT NULL,
+            filepath TEXT NOT NULL,
+            file_type TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
         conn.commit()
 
 def create_template_group(name: str, source_excel_path: str, field_definitions: List[Dict], template_files: List[str]):
@@ -110,7 +123,7 @@ def get_template_files(group_id: int) -> List[Dict]:
     """根據群組ID獲取所有範本檔案"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, filename, filepath FROM template_files WHERE group_id = ?", (group_id,))
+        cursor.execute("SELECT id, filename, filepath, file_type FROM template_files WHERE group_id = ?", (group_id,))
         files = [dict(row) for row in cursor.fetchall()]
         return files
 
@@ -190,3 +203,69 @@ def delete_template_group(group_id: int) -> bool:
         except Exception:
             conn.rollback()
     return False
+
+def update_template_group_fields(group_id: int) -> List[Dict]:
+    """
+    重新解析基本資料Excel檔案的欄位
+    只解析基本資料檔案，不影響其他範本檔案
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 獲取群組的基本資料Excel路徑
+            cursor.execute("SELECT source_excel_path FROM template_groups WHERE id = ?", (group_id,))
+            result = cursor.fetchone()
+            if not result:
+                return None
+            
+            excel_path = result['source_excel_path']
+            if not os.path.exists(excel_path):
+                return None
+            
+            # 重新解析Excel檔案
+            import pandas as pd
+            df = pd.read_excel(excel_path, header=None)  # 不使用標題行
+            
+            # 提取欄位定義
+            field_definitions = []
+            for index, row in df.iterrows():
+                # 跳過第一行（標題行）
+                if index == 0:
+                    continue
+                    
+                field_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else None
+                if not field_name or field_name == 'nan':
+                    continue
+
+                field_value = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+                description = str(row.iloc[2]).strip() if len(row) > 2 and pd.notna(row.iloc[2]) else ""
+                
+                # 處理下拉選單選項
+                dropdown_options = []
+                if "這邊可以做成下拉式選單" in description:
+                    clean_desc = description.replace("這邊可以做成下拉式選單", "").strip()
+                    options = [opt.strip() for opt in clean_desc.split('\n') if opt.strip()]
+                    if len(options) <= 1:
+                        import re
+                        options = re.split(r'\d+\.|\d+\s', clean_desc)
+                        options = [opt.strip() for opt in options if opt.strip()]
+                    if options:
+                        dropdown_options = options
+                
+                field_definitions.append({
+                    'name': field_name,
+                    'default_value': field_value,
+                    'description': description,
+                    'dropdown_options': dropdown_options
+                })
+            
+            # 更新資料庫中的欄位定義
+            if update_field_definitions(group_id, field_definitions):
+                return field_definitions
+            else:
+                return None
+                
+    except Exception as e:
+        print(f"重新解析欄位時發生錯誤: {str(e)}")
+        return None
