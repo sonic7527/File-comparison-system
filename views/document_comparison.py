@@ -933,6 +933,10 @@ def show_document_comparison_main():
     """
     文件比對功能主入口
     """
+    # 強制顯示調試信息
+    st.error("🚨 測試：代碼已更新，這個錯誤信息應該顯示")
+    st.success("✅ 測試：代碼已更新，這個成功信息應該顯示")
+    
     initialize_comparison()
     
     # 直接調試信息
