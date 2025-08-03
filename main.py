@@ -236,25 +236,8 @@ def show_home_page():
         st.warning("容量監控暫時無法載入，請稍後再試")
 
 def show_comparison_page():
-    st.info("🔍 調試信息：show_comparison_page 被調用")
-    st.error("🚨 測試：show_comparison_page 函數開始執行")
-    
-    # 檢查函數是否存在
-    st.info("🔍 檢查：show_document_comparison_main 函數是否存在")
-    try:
-        from views.document_comparison import show_document_comparison_main
-        st.success("✅ 檢查：函數導入成功")
-    except Exception as e:
-        st.error(f"❌ 檢查：函數導入失敗 - {str(e)}")
-        return
-    
-    # 嘗試調用函數
-    st.info("🔍 嘗試：調用 show_document_comparison_main 函數")
-    try:
-        show_document_comparison_main()
-        st.success("✅ 測試：show_document_comparison_main 函數調用成功")
-    except Exception as e:
-        st.error(f"❌ 測試：show_document_comparison_main 函數調用失敗 - {str(e)}")
+    from views.document_comparison import show_document_comparison_main
+    show_document_comparison_main()
 
 # --- 主程式 (邏輯已更新) ---
 def main():
