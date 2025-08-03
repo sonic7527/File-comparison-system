@@ -4,6 +4,7 @@ import pandas as pd
 import sqlite3
 import json
 import shutil
+import tempfile
 from datetime import datetime
 from PIL import Image
 import io
@@ -23,6 +24,25 @@ def setup_comparison_database():
         templates_dir = "data/comparison_templates"
     
     os.makedirs(templates_dir, exist_ok=True)
+    
+    # 調試信息：在雲端環境中檢查文件系統
+    if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+        st.info(f"🔍 調試信息：範本目錄路徑：{templates_dir}")
+        if os.path.exists(templates_dir):
+            files = os.listdir(templates_dir)
+            st.info(f"🔍 調試信息：目錄中有 {len(files)} 個文件")
+            for file in files:
+                file_path = os.path.join(templates_dir, file)
+                file_size = os.path.getsize(file_path)
+                st.info(f"文件：{file} ({file_size} bytes)")
+        else:
+            st.warning("⚠️ 範本目錄不存在")
+    
+    # 檢查是否需要初始化範本
+    templates = get_comparison_templates()
+    if not templates and os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+        # 在雲端環境中，如果沒有範本，顯示提示
+        st.info("🌐 **雲端部署提示**：這是雲端版本，需要重新上傳範本。請使用「📤 上傳範本」功能上傳你的範本文件。")
     
     return templates_dir
 
@@ -78,7 +98,18 @@ def get_comparison_templates() -> list:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
-            return [dict(row) for row in cursor.fetchall()]
+            templates = [dict(row) for row in cursor.fetchall()]
+            
+            # 調試信息：在雲端環境中顯示查詢結果
+            if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+                st.info(f"🔍 調試信息：資料庫查詢到 {len(templates)} 個範本")
+                if templates:
+                    for i, template in enumerate(templates):
+                        st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
+                else:
+                    st.warning("⚠️ 資料庫中沒有找到範本記錄")
+            
+            return templates
     except Exception as e:
         st.error(f"取得範本列表錯誤：{str(e)}")
         return []
