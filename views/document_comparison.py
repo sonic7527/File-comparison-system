@@ -243,8 +243,11 @@ def show_document_comparison():
         """)
         
         if st.button("📁 管理範本", use_container_width=True, type="primary"):
+            st.info("🔍 調試信息：管理範本按鈕被點擊")
             st.session_state.comparison_mode = "manage_templates"
             st.session_state.comparison_step = "template_list"
+            st.info(f"🔍 調試信息：設置 comparison_mode = {st.session_state.comparison_mode}")
+            st.info(f"🔍 調試信息：設置 comparison_step = {st.session_state.comparison_step}")
             st.rerun()
     
     with col3:
