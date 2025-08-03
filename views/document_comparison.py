@@ -106,19 +106,22 @@ def get_comparison_templates() -> list:
     """
     try:
         setup_comparison_database()
+        
+        # 直接顯示調試信息，不依賴環境變數
+        st.info("🔍 調試信息：開始查詢範本")
+        st.info(f"環境變數 STREAMLIT_SERVER_RUN_ON_HEADLESS: {os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', 'NOT_SET')}")
+        
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
             templates = [dict(row) for row in cursor.fetchall()]
             
-            # 調試信息：在雲端環境中顯示查詢結果
-            if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
-                st.info(f"🔍 調試信息：資料庫查詢到 {len(templates)} 個範本")
-                if templates:
-                    for i, template in enumerate(templates):
-                        st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
-                else:
-                    st.warning("⚠️ 資料庫中沒有找到範本記錄")
+            st.info(f"🔍 調試信息：資料庫查詢到 {len(templates)} 個範本")
+            if templates:
+                for i, template in enumerate(templates):
+                    st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
+            else:
+                st.warning("⚠️ 資料庫中沒有找到範本記錄")
             
             # 在雲端環境中，檢查並修復文件路徑
             if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) and templates:
@@ -419,17 +422,17 @@ def show_template_management():
         st.subheader("📋 已上傳的比對範本")
         
         # 從資料庫獲取實際範本列表
+        st.info("🔍 調試信息：範本管理頁面開始")
         available_templates = get_comparison_templates()
         
-        # 調試信息：在雲端環境中顯示
-        if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
-            st.info("🔍 調試信息：範本管理頁面")
-            st.info(f"資料庫查詢結果：{len(available_templates)} 個範本")
-            if available_templates:
-                for i, template in enumerate(available_templates):
-                    st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
-            else:
-                st.warning("⚠️ 資料庫中沒有找到範本記錄")
+        # 直接顯示調試信息
+        st.info("🔍 調試信息：範本管理頁面")
+        st.info(f"資料庫查詢結果：{len(available_templates)} 個範本")
+        if available_templates:
+            for i, template in enumerate(available_templates):
+                st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
+        else:
+            st.warning("⚠️ 資料庫中沒有找到範本記錄")
         
         if available_templates:
             for template in available_templates:
