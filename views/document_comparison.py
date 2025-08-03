@@ -53,6 +53,12 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
     try:
         templates_dir = setup_comparison_database()
         
+        # 調試信息：在雲端環境中顯示保存過程
+        if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+            st.info(f"🔍 調試信息：保存範本")
+            st.info(f"範本目錄：{templates_dir}")
+            st.info(f"資料庫路徑：{os.path.join(tempfile.gettempdir(), 'templates.db')}")
+        
         # 獲取文件大小
         uploaded_file.seek(0, 2)  # 移到文件末尾
         file_size = uploaded_file.tell()  # 以字節為單位
@@ -80,6 +86,11 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
                 (template_path, template_id)
             )
             conn.commit()
+            
+            # 調試信息：確認保存結果
+            if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+                st.info(f"✅ 範本已保存：ID={template_id}, 路徑={template_path}")
+                st.info(f"文件大小：{file_size} bytes")
             
         return template_id
     except sqlite3.IntegrityError:
@@ -377,6 +388,16 @@ def show_template_management():
         
         # 從資料庫獲取實際範本列表
         available_templates = get_comparison_templates()
+        
+        # 調試信息：在雲端環境中顯示
+        if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False):
+            st.info("🔍 調試信息：範本管理頁面")
+            st.info(f"資料庫查詢結果：{len(available_templates)} 個範本")
+            if available_templates:
+                for i, template in enumerate(available_templates):
+                    st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
+            else:
+                st.warning("⚠️ 資料庫中沒有找到範本記錄")
         
         if available_templates:
             for template in available_templates:
