@@ -1194,6 +1194,17 @@ def show_document_comparison_main():
     # 🔧 記錄初始狀態
     initial_state = log_state_info("初始化後")
     
+    # 🔧 檢查強制標誌
+    if st.session_state.get('force_manage_templates', False):
+        logger.info("🔧 檢測到強制標誌，直接設置狀態")
+        console_log("🔧 檢測到強制標誌，直接設置狀態")
+        st.session_state.comparison_mode = "manage_templates"
+        st.session_state.comparison_step = "template_list"
+        st.session_state['force_manage_templates'] = False
+        st.session_state['force_template_list'] = False
+        logger.info("🔧 強制標誌已清除")
+        console_log("🔧 強制標誌已清除")
+    
     # 🔧 強制狀態修復：如果URL參數或其他方式指示應該顯示管理範本
     logger.info("🔧 開始強制狀態修復機制")
     console_log("🔧 開始強制狀態修復機制")
@@ -1239,6 +1250,11 @@ def show_document_comparison_main():
                 logger.info("🔧 狀態設置成功，準備重新運行...")
                 console_success("狀態設置成功，準備重新運行...")
                 st.info("🔧 狀態設置成功，準備重新運行...")
+                
+                # 🔧 使用更持久的方式保存狀態
+                st.session_state['force_manage_templates'] = True
+                st.session_state['force_template_list'] = True
+                
                 st.rerun()
             else:
                 logger.error("❌ 狀態設置失敗！")
