@@ -32,6 +32,19 @@ def setup_logging():
 
 logger = setup_logging()
 
+# 🔧 添加瀏覽器控制台輸出
+def console_log(message):
+    """在瀏覽器控制台輸出日誌"""
+    st.write(f"<script>console.log('🔍 {message}');</script>", unsafe_allow_html=True)
+
+def console_error(message):
+    """在瀏覽器控制台輸出錯誤"""
+    st.write(f"<script>console.error('❌ {message}');</script>", unsafe_allow_html=True)
+
+def console_success(message):
+    """在瀏覽器控制台輸出成功信息"""
+    st.write(f"<script>console.log('✅ {message}');</script>", unsafe_allow_html=True)
+
 def log_state_info(context=""):
     """記錄當前狀態信息"""
     state_info = {
@@ -1163,6 +1176,10 @@ def show_document_comparison_main():
     log_function_call("show_document_comparison_main")
     log_state_info("函數開始")
     
+    # 🔧 瀏覽器控制台輸出
+    console_log("🚀 show_document_comparison_main 函數被調用")
+    console_log("🔍 開始記錄狀態信息")
+    
     # 強制顯示調試信息
     st.error("🚨 測試：show_document_comparison_main 函數被調用")
     st.warning("⚠️ 測試：函數內部代碼開始執行")
@@ -1179,11 +1196,13 @@ def show_document_comparison_main():
     
     # 🔧 強制狀態修復：如果URL參數或其他方式指示應該顯示管理範本
     logger.info("🔧 開始強制狀態修復機制")
+    console_log("🔧 開始強制狀態修復機制")
     st.info("🔧 調試信息：強制狀態修復機制：檢查範本目錄是否存在文件...")
     
     # 檢查是否有範本文件存在
     templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates") if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) else "data/comparison_templates"
     logger.info(f"🔍 範本目錄路徑: {templates_dir}")
+    console_log(f"🔍 範本目錄路徑: {templates_dir}")
     st.info(f"🔍 調試信息：範本目錄路徑: {templates_dir}")
     
     if os.path.exists(templates_dir):
@@ -1193,10 +1212,12 @@ def show_document_comparison_main():
         
         if len(files) > 0:
             logger.info(f"✅ 發現範本目錄中有文件，強制設置為管理範本模式")
+            console_success(f"發現範本目錄中有文件，強制設置為管理範本模式")
             st.info(f"✅ 發現範本目錄中有文件，強制設置為管理範本模式")
             
             # 🔧 記錄設置前的狀態
             before_state = log_state_info("設置前")
+            console_log(f"設置前狀態: {before_state}")
             
             # 🔧 強制設置狀態並立即確認
             st.session_state.comparison_mode = "manage_templates"
@@ -1204,6 +1225,7 @@ def show_document_comparison_main():
             
             # 🔧 記錄設置後的狀態
             after_state = log_state_info("設置後")
+            console_log(f"設置後狀態: {after_state}")
             
             st.info(f"🔧 已強制設置 comparison_mode = {st.session_state.comparison_mode}")
             st.info(f"🔧 已強制設置 comparison_step = {st.session_state.comparison_step}")
@@ -1215,10 +1237,12 @@ def show_document_comparison_main():
             # 🔧 如果狀態設置成功，立即重新運行
             if st.session_state.get('comparison_mode') == "manage_templates":
                 logger.info("🔧 狀態設置成功，準備重新運行...")
+                console_success("狀態設置成功，準備重新運行...")
                 st.info("🔧 狀態設置成功，準備重新運行...")
                 st.rerun()
             else:
                 logger.error("❌ 狀態設置失敗！")
+                console_error("狀態設置失敗！")
                 st.error("❌ 狀態設置失敗！")
         else:
             logger.info("🔍 範本目錄為空")
