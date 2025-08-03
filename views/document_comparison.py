@@ -9,6 +9,75 @@ from datetime import datetime
 from PIL import Image
 import io
 from core.database import get_db_connection
+import logging
+
+# 🔧 設置完整的日誌系統
+def setup_logging():
+    """設置日誌系統"""
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    
+    log_file = os.path.join(log_dir, f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
+
+def log_state_info(context=""):
+    """記錄當前狀態信息"""
+    state_info = {
+        "comparison_mode": st.session_state.get('comparison_mode', 'None'),
+        "comparison_step": st.session_state.get('comparison_step', 'None'),
+        "saved_template_id": st.session_state.get('saved_template_id', 'None'),
+        "template_name": st.session_state.get('template_name', 'None'),
+        "selected_template_id": st.session_state.get('selected_template_id', 'None'),
+        "page_selection": st.session_state.get('page_selection', 'None')
+    }
+    logger.info(f"🔍 狀態信息 ({context}): {json.dumps(state_info, ensure_ascii=False)}")
+    return state_info
+
+def log_function_call(func_name, **kwargs):
+    """記錄函數調用"""
+    logger.info(f"🚀 函數調用: {func_name}")
+    if kwargs:
+        logger.info(f"📝 參數: {json.dumps(kwargs, ensure_ascii=False)}")
+
+def log_condition_check(condition_name, result, details=""):
+    """記錄條件檢查"""
+    logger.info(f"🔍 條件檢查: {condition_name} = {result}")
+    if details:
+        logger.info(f"📝 詳細信息: {details}")
+
+def log_data_info(data_name, data):
+    """記錄數據信息"""
+    if isinstance(data, (list, dict)):
+        logger.info(f"📊 {data_name}: {json.dumps(data, ensure_ascii=False, default=str)}")
+    else:
+        logger.info(f"📊 {data_name}: {data}")
+
+def log_error(error_msg, error_obj=None):
+    """記錄錯誤信息"""
+    logger.error(f"❌ 錯誤: {error_msg}")
+    if error_obj:
+        logger.error(f"📝 錯誤詳情: {str(error_obj)}")
+
+def log_success(success_msg):
+    """記錄成功信息"""
+    logger.info(f"✅ 成功: {success_msg}")
+
+# 🔧 在每個關鍵函數開始時記錄
+logger.info("=" * 80)
+logger.info("🔄 應用程序啟動")
+logger.info("=" * 80)
 
 def setup_comparison_database():
     """
@@ -465,6 +534,10 @@ def show_template_management():
     """
     顯示範本管理界面
     """
+    # 🔧 完整的日誌記錄
+    log_function_call("show_template_management")
+    log_state_info("函數開始")
+    
     st.error("🚨 測試：show_template_management 函數被調用")
     st.warning("⚠️ 測試：show_template_management 函數開始執行")
     
@@ -1086,6 +1159,10 @@ def show_document_comparison_main():
     """
     文件比對功能主入口
     """
+    # 🔧 完整的日誌記錄
+    log_function_call("show_document_comparison_main")
+    log_state_info("函數開始")
+    
     # 強制顯示調試信息
     st.error("🚨 測試：show_document_comparison_main 函數被調用")
     st.warning("⚠️ 測試：函數內部代碼開始執行")
@@ -1097,19 +1174,58 @@ def show_document_comparison_main():
     st.info(f"comparison_mode: {st.session_state.get('comparison_mode', 'None')}")
     st.info(f"comparison_step: {st.session_state.get('comparison_step', 'None')}")
     
+    # 🔧 記錄初始狀態
+    initial_state = log_state_info("初始化後")
+    
     # 🔧 強制狀態修復：如果URL參數或其他方式指示應該顯示管理範本
-    if st.session_state.get('comparison_mode') is None:
-        # 檢查是否有其他指示應該顯示管理範本
-        st.info("🔧 嘗試檢測是否應該顯示管理範本...")
+    logger.info("🔧 開始強制狀態修復機制")
+    st.info("🔧 調試信息：強制狀態修復機制：檢查範本目錄是否存在文件...")
+    
+    # 檢查是否有範本文件存在
+    templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates") if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) else "data/comparison_templates"
+    logger.info(f"🔍 範本目錄路徑: {templates_dir}")
+    st.info(f"🔍 調試信息：範本目錄路徑: {templates_dir}")
+    
+    if os.path.exists(templates_dir):
+        files = os.listdir(templates_dir)
+        logger.info(f"🔍 範本目錄內容: {files}")
+        st.info(f"🔍 調試信息：範本目錄內容: {files}")
         
-        # 檢查是否有範本文件存在
-        templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates") if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) else "data/comparison_templates"
-        if os.path.exists(templates_dir) and len(os.listdir(templates_dir)) > 0:
-            st.info(f"🔍 發現範本目錄中有文件，強制設置為管理範本模式")
+        if len(files) > 0:
+            logger.info(f"✅ 發現範本目錄中有文件，強制設置為管理範本模式")
+            st.info(f"✅ 發現範本目錄中有文件，強制設置為管理範本模式")
+            
+            # 🔧 記錄設置前的狀態
+            before_state = log_state_info("設置前")
+            
+            # 🔧 強制設置狀態並立即確認
             st.session_state.comparison_mode = "manage_templates"
             st.session_state.comparison_step = "template_list"
+            
+            # 🔧 記錄設置後的狀態
+            after_state = log_state_info("設置後")
+            
             st.info(f"🔧 已強制設置 comparison_mode = {st.session_state.comparison_mode}")
             st.info(f"🔧 已強制設置 comparison_step = {st.session_state.comparison_step}")
+            
+            # 🔧 立即確認狀態是否設置成功
+            st.info(f"🔧 確認：comparison_mode = {st.session_state.get('comparison_mode', 'None')}")
+            st.info(f"🔧 確認：comparison_step = {st.session_state.get('comparison_step', 'None')}")
+            
+            # 🔧 如果狀態設置成功，立即重新運行
+            if st.session_state.get('comparison_mode') == "manage_templates":
+                logger.info("🔧 狀態設置成功，準備重新運行...")
+                st.info("🔧 狀態設置成功，準備重新運行...")
+                st.rerun()
+            else:
+                logger.error("❌ 狀態設置失敗！")
+                st.error("❌ 狀態設置失敗！")
+        else:
+            logger.info("🔍 範本目錄為空")
+            st.info("🔍 調試信息：範本目錄為空")
+    else:
+        logger.info(f"🔍 範本目錄不存在: {templates_dir}")
+        st.info(f"🔍 調試信息：範本目錄不存在: {templates_dir}")
     
     # 返回按鈕
     col1, col2 = st.columns([1, 4])
@@ -1124,29 +1240,46 @@ def show_document_comparison_main():
             st.rerun()
     
     # 🔍 詳細的條件判斷調試
+    logger.info("🔍 開始條件判斷")
     st.info("🔍 調試信息：開始條件判斷")
-    st.info(f"🔍 調試信息：comparison_mode = '{st.session_state.get('comparison_mode', 'None')}'")
-    st.info(f"🔍 調試信息：comparison_mode == 'upload_template' = {st.session_state.get('comparison_mode') == 'upload_template'}")
-    st.info(f"🔍 調試信息：comparison_mode == 'manage_templates' = {st.session_state.get('comparison_mode') == 'manage_templates'}")
-    st.info(f"🔍 調試信息：comparison_mode == 'compare_templates' = {st.session_state.get('comparison_mode') == 'compare_templates'}")
+    
+    current_mode = st.session_state.get('comparison_mode', 'None')
+    logger.info(f"🔍 當前 comparison_mode = '{current_mode}'")
+    st.info(f"🔍 調試信息：comparison_mode = '{current_mode}'")
+    
+    # 🔧 記錄所有條件檢查
+    conditions = {
+        "upload_template": current_mode == 'upload_template',
+        "manage_templates": current_mode == 'manage_templates',
+        "compare_templates": current_mode == 'compare_templates'
+    }
+    
+    for condition_name, result in conditions.items():
+        log_condition_check(f"comparison_mode == '{condition_name}'", result)
+        st.info(f"🔍 調試信息：comparison_mode == '{condition_name}' = {result}")
     
     # 根據模式顯示不同界面
     if st.session_state.comparison_mode == "upload_template":
+        logger.info("🔍 進入上傳範本模式")
         st.info("🔍 調試信息：進入上傳範本模式")
         show_template_upload()
     elif st.session_state.comparison_mode == "manage_templates":
+        logger.info("🔍 進入管理範本模式")
         st.info("🔍 調試信息：進入管理範本模式")
         st.info("🔍 調試信息：準備調用 show_template_management()")
         show_template_management()
         st.info("🔍 調試信息：show_template_management() 調用完成")
     elif st.session_state.comparison_mode == "compare_templates":
+        logger.info("🔍 進入比對範本模式")
         st.info("🔍 調試信息：進入比對範本模式")
         show_comparison_selection()
     else:
+        logger.info("🔍 進入 else 分支")
         st.info("🔍 調試信息：進入 else 分支")
         st.info("🔍 調試信息：顯示主界面")
         # 確保顯示主界面（三個選項）
         show_document_comparison()
         st.info("🔍 調試信息：show_document_comparison() 調用完成")
     
+    logger.info("🔍 條件判斷完成")
     st.info("🔍 調試信息：條件判斷完成") 
