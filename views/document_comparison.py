@@ -1007,6 +1007,20 @@ def show_document_comparison_main():
     st.info(f"comparison_mode: {st.session_state.get('comparison_mode', 'None')}")
     st.info(f"comparison_step: {st.session_state.get('comparison_step', 'None')}")
     
+    # 🔧 強制狀態修復：如果URL參數或其他方式指示應該顯示管理範本
+    if st.session_state.get('comparison_mode') is None:
+        # 檢查是否有其他指示應該顯示管理範本
+        st.info("🔧 嘗試檢測是否應該顯示管理範本...")
+        
+        # 檢查是否有範本文件存在
+        templates_dir = os.path.join(tempfile.gettempdir(), "comparison_templates") if os.environ.get('STREAMLIT_SERVER_RUN_ON_HEADLESS', False) else "data/comparison_templates"
+        if os.path.exists(templates_dir) and len(os.listdir(templates_dir)) > 0:
+            st.info(f"🔍 發現範本目錄中有文件，強制設置為管理範本模式")
+            st.session_state.comparison_mode = "manage_templates"
+            st.session_state.comparison_step = "template_list"
+            st.info(f"🔧 已強制設置 comparison_mode = {st.session_state.comparison_mode}")
+            st.info(f"🔧 已強制設置 comparison_step = {st.session_state.comparison_step}")
+    
     # 返回按鈕
     col1, col2 = st.columns([1, 4])
     with col1:
