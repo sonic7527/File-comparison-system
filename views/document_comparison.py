@@ -1123,17 +1123,30 @@ def show_document_comparison_main():
             st.session_state.page_selection = "🏠 系統首頁"
             st.rerun()
     
+    # 🔍 詳細的條件判斷調試
+    st.info("🔍 調試信息：開始條件判斷")
+    st.info(f"🔍 調試信息：comparison_mode = '{st.session_state.get('comparison_mode', 'None')}'")
+    st.info(f"🔍 調試信息：comparison_mode == 'upload_template' = {st.session_state.get('comparison_mode') == 'upload_template'}")
+    st.info(f"🔍 調試信息：comparison_mode == 'manage_templates' = {st.session_state.get('comparison_mode') == 'manage_templates'}")
+    st.info(f"🔍 調試信息：comparison_mode == 'compare_templates' = {st.session_state.get('comparison_mode') == 'compare_templates'}")
+    
     # 根據模式顯示不同界面
     if st.session_state.comparison_mode == "upload_template":
         st.info("🔍 調試信息：進入上傳範本模式")
         show_template_upload()
     elif st.session_state.comparison_mode == "manage_templates":
         st.info("🔍 調試信息：進入管理範本模式")
+        st.info("🔍 調試信息：準備調用 show_template_management()")
         show_template_management()
+        st.info("🔍 調試信息：show_template_management() 調用完成")
     elif st.session_state.comparison_mode == "compare_templates":
         st.info("🔍 調試信息：進入比對範本模式")
         show_comparison_selection()
     else:
+        st.info("🔍 調試信息：進入 else 分支")
         st.info("🔍 調試信息：顯示主界面")
         # 確保顯示主界面（三個選項）
-        show_document_comparison() 
+        show_document_comparison()
+        st.info("🔍 調試信息：show_document_comparison() 調用完成")
+    
+    st.info("🔍 調試信息：條件判斷完成") 
