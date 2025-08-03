@@ -924,6 +924,8 @@ def initialize_comparison():
     """
     初始化比對功能
     """
+    st.info("🔍 調試信息：initialize_comparison 函數開始執行")
+    
     if 'comparison_mode' not in st.session_state:
         st.session_state.comparison_mode = None
     if 'comparison_step' not in st.session_state:
@@ -932,6 +934,8 @@ def initialize_comparison():
         st.session_state.reference_file = None
     if 'target_file' not in st.session_state:
         st.session_state.target_file = None
+    
+    st.success("✅ 調試信息：initialize_comparison 函數執行完成")
 
 def show_document_comparison_main():
     """
