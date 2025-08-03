@@ -484,21 +484,32 @@ def show_template_management():
         st.info(f"available_templates 類型：{type(available_templates)}")
         st.info(f"available_templates 內容：{available_templates}")
         
-        if available_templates and len(available_templates) > 0:
-            st.success(f"✅ 找到 {len(available_templates)} 個範本，開始顯示...")
-            for i, template in enumerate(available_templates):
+        # 檢查範本列表的有效性
+        valid_templates = []
+        if available_templates:
+            for template in available_templates:
+                if template and isinstance(template, dict) and 'name' in template and 'id' in template:
+                    valid_templates.append(template)
+                else:
+                    st.warning(f"⚠️ 發現無效範本記錄：{template}")
+        
+        st.info(f"🔍 有效範本數量：{len(valid_templates)}")
+        
+        if valid_templates:
+            st.success(f"✅ 找到 {len(valid_templates)} 個有效範本，開始顯示...")
+            for i, template in enumerate(valid_templates):
                 st.info(f"範本 {i+1}: {template['name']} (ID: {template['id']})")
             
-            for template in available_templates:
-                size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template['file_size'] else "未知"
-                with st.expander(f"📄 {template['name']} ({template['file_type']}, {size_mb})"):
+            for template in valid_templates:
+                size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template.get('file_size') else "未知"
+                with st.expander(f"📄 {template['name']} ({template.get('file_type', '未知')}, {size_mb})"):
                     col1, col2, col3 = st.columns([2, 1, 1])
                     
                     with col1:
-                        st.write(f"**上傳日期**：{template['created_at']}")
-                        st.write(f"**檔案類型**：{template['file_type']}")
+                        st.write(f"**上傳日期**：{template.get('created_at', '未知')}")
+                        st.write(f"**檔案類型**：{template.get('file_type', '未知')}")
                         st.write(f"**檔案大小**：{size_mb}")
-                        st.write(f"**檔案名稱**：{template['filename']}")
+                        st.write(f"**檔案名稱**：{template.get('filename', '未知')}")
                     
                     with col2:
                         if st.button("🗑️ 刪除", key=f"del_template_{template['id']}", type="secondary"):
@@ -514,7 +525,7 @@ def show_template_management():
                             st.session_state.comparison_step = "template_detail"
                             st.rerun()
         else:
-            st.warning("⚠️ 資料庫中沒有找到範本記錄")
+            st.warning("⚠️ 沒有找到有效的範本記錄")
             st.info("目前沒有已上傳的比對範本。")
         
         # 返回按鈕
