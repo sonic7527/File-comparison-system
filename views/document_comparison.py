@@ -937,6 +937,9 @@ def show_document_comparison_main():
     """
     文件比對功能主入口
     """
+    # 強制顯示調試信息
+    st.error("🚨 測試：show_document_comparison_main 函數被調用")
+    
     initialize_comparison()
     
     # 直接調試信息
