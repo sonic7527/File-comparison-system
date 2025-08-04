@@ -1,12 +1,12 @@
 import os
 import streamlit as st
 from typing import List, Dict, Optional
-from libsql_client import create_client
 import tempfile
 import shutil
 from pathlib import Path
 import asyncio
 import json
+from libsql_client import create_client
 
 class TursoDatabase:
     """Turso 雲端資料庫管理類"""
@@ -50,7 +50,6 @@ class TursoDatabase:
                 import asyncio
                 
                 async def create_client_async():
-                    from libsql_client import create_client
                     return create_client(
                         url=self.turso_url,
                         auth_token=self.turso_token
@@ -158,7 +157,6 @@ class TursoDatabase:
         
         try:
             async def async_get():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -200,7 +198,6 @@ class TursoDatabase:
             """
             
             async def async_save():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -227,7 +224,6 @@ class TursoDatabase:
             sql = "DELETE FROM comparison_templates WHERE id = ?"
             
             async def async_delete():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -250,7 +246,6 @@ class TursoDatabase:
         
         try:
             async def async_create_group():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -300,7 +295,6 @@ class TursoDatabase:
         
         try:
             async def async_get_groups():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -334,7 +328,6 @@ class TursoDatabase:
         
         try:
             async def async_get_files():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -371,7 +364,6 @@ class TursoDatabase:
         
         try:
             async def async_get_fields():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -408,7 +400,6 @@ class TursoDatabase:
         
         try:
             async def async_delete_file():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -430,7 +421,6 @@ class TursoDatabase:
         
         try:
             async def async_add_file():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
@@ -458,7 +448,6 @@ class TursoDatabase:
         
         try:
             async def async_delete_group():
-                from libsql_client import create_client
                 client = create_client(
                     url=self.turso_url,
                     auth_token=self.turso_token
