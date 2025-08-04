@@ -25,9 +25,11 @@ class GitHubStorage:
             self.repo_name = github_config.get("repo")
             
             if self.github_token and self.repo_owner and self.repo_name:
-                st.success("✅ 已配置 GitHub 檔案存儲")
+                # 靜默模式，不顯示配置訊息
+                pass
             else:
-                st.warning("⚠️ 未配置 GitHub，將使用本地存儲")
+                # 靜默模式，不顯示配置訊息
+                pass
         except Exception as e:
             st.error(f"❌ GitHub 配置失敗：{str(e)}")
     
@@ -153,5 +155,4 @@ class GitHubStorage:
             st.error(f"❌ 刪除檔案錯誤：{str(e)}")
             return False
 
-# 全局實例
-github_storage = GitHubStorage() 
+# 移除全局實例化，改為在需要時創建實例 

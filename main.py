@@ -240,59 +240,72 @@ def show_home_page():
         
         # 容量進度條
         st.markdown('<div class="storage-progress">', unsafe_allow_html=True)
-        st.markdown(f'<h4>💾 儲存空間使用量：{storage_stats["formatted_size"]} ({storage_stats["usage_percentage"]}%)</h4>', unsafe_allow_html=True)
+        
+        if storage_stats.get('is_cloud', False):
+            # 雲端模式：顯示 Turso 資料庫容量
+            st.markdown(f'<h4>☁️ 雲端資料庫使用量：{storage_stats["formatted_size"]} ({storage_stats["usage_percentage"]}%)</h4>', unsafe_allow_html=True)
+            st.markdown(f'<p style="font-size: 0.9em; color: #888;">📊 總容量限制：{storage_stats["cloud_limit_gb"]} GB</p>', unsafe_allow_html=True)
+        else:
+            # 本地模式：顯示本地存儲容量
+            st.markdown(f'<h4>💾 本地儲存空間使用量：{storage_stats["formatted_size"]} ({storage_stats["usage_percentage"]}%)</h4>', unsafe_allow_html=True)
+        
         st.progress(storage_stats['usage_percentage'] / 100)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # 雲端容量統計
-        try:
-            from core.turso_database import TursoDatabase
-            turso_db = TursoDatabase()
+        # 範本容量統計
+        if storage_stats.get('is_cloud', False):
+            # 雲端模式：顯示雲端範本統計
+            st.markdown("---")
+            st.subheader("📊 雲端範本容量統計")
             
-            if turso_db.is_cloud_mode():
-                turso_db.create_tables()
-                
-                # 獲取比對範本統計
-                comparison_templates = turso_db.get_comparison_templates()
-                comparison_size = sum(template.get('file_size', 0) for template in comparison_templates)
-                comparison_size_mb = round(comparison_size / (1024 * 1024), 2)
-                
-                # 獲取智能生成範本統計
-                template_groups = turso_db.get_all_template_groups_cloud()
-                template_files = []
-                for group in template_groups:
-                    files = turso_db.get_template_files_cloud(group['id'])
-                    template_files.extend(files)
-                
-                generation_size = sum(file.get('file_size', 0) for file in template_files)
-                generation_size_mb = round(generation_size / (1024 * 1024), 2)
-                
-                st.markdown("---")
-                st.subheader("📊 雲端範本容量統計")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(
-                        "🚀 智能生成範本", 
-                        f"{generation_size_mb} MB", 
-                        f"{len(template_files)} 個檔案"
-                    )
-                
-                with col2:
-                    st.metric(
-                        "🔍 比對範本", 
-                        f"{comparison_size_mb} MB", 
-                        f"{len(comparison_templates)} 個檔案"
-                    )
-                
-                st.info("💡 **提示**：所有範本已統一保存到雲端，定期備份即可")
-            else:
-                st.warning("⚠️ 雲端未連接，無法顯示容量統計")
-        except Exception as e:
-            st.warning(f"容量統計載入失敗：{str(e)}")
+            template_usage = storage_stats['template_usage']
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                generation_stats = template_usage.get("智能生成範本", {})
+                st.metric(
+                    "🚀 智能生成範本", 
+                    f"{generation_stats.get('size_mb', 0)} MB", 
+                    f"{generation_stats.get('file_count', 0)} 個檔案"
+                )
+            
+            with col2:
+                comparison_stats = template_usage.get("比對範本", {})
+                st.metric(
+                    "🔍 比對範本", 
+                    f"{comparison_stats.get('size_mb', 0)} MB", 
+                    f"{comparison_stats.get('file_count', 0)} 個檔案"
+                )
+            
+            st.info("💡 **提示**：所有範本已統一保存到雲端，定期備份即可")
+        else:
+            # 本地模式：顯示本地範本統計
+            st.markdown("---")
+            st.subheader("📊 本地範本容量統計")
+            
+            template_usage = storage_stats.get('template_usage', {})
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                generation_stats = template_usage.get("智能生成範本", {})
+                st.metric(
+                    "🚀 智能生成範本", 
+                    f"{generation_stats.get('size_mb', 0)} MB", 
+                    f"{generation_stats.get('file_count', 0)} 個檔案"
+                )
+            
+            with col2:
+                comparison_stats = template_usage.get("比對範本", {})
+                st.metric(
+                    "🔍 比對範本", 
+                    f"{comparison_stats.get('size_mb', 0)} MB", 
+                    f"{comparison_stats.get('file_count', 0)} 個檔案"
+                )
+            
+            st.warning("⚠️ 本地模式：建議配置雲端資料庫以獲得更好的容量管理")
                     
     except Exception as e:
-        st.warning("容量監控暫時無法載入，請稍後再試")
+        st.warning(f"容量監控載入失敗：{str(e)}")
 
 def show_comparison_page():
     from views.document_comparison import show_document_comparison_main
