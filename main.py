@@ -307,7 +307,15 @@ def main():
     try:
         from core.turso_database import TursoDatabase
         turso_db = TursoDatabase()
-        turso_db.check_and_display_status()
+        # 安全檢查方法是否存在
+        if hasattr(turso_db, 'check_and_display_status'):
+            turso_db.check_and_display_status()
+        else:
+            # 如果方法不存在，顯示基本狀態
+            if turso_db.is_cloud_mode():
+                st.success("✅ Turso 雲端資料庫已配置")
+            else:
+                st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
     except Exception as e:
         st.warning(f"資料庫狀態檢查失敗：{str(e)}")
     
