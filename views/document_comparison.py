@@ -11,6 +11,14 @@ import io
 from core.database import get_db_connection, init_database # 引入 init_database
 from pathlib import Path # 引入 pathlib
 
+# --- 核心模組導入 ---
+from core.database import (
+    init_database, get_comparison_templates, save_comparison_template,
+    delete_comparison_template, DB_PATH
+)
+from core.file_handler import save_uploaded_file, get_file_type
+from utils.ui_components import show_turso_status_card
+
 # --- 核心修改區域 START ---
 # 建立一個指向專案根目錄的絕對路徑
 ROOT_DIR = Path(__file__).parent.parent 
@@ -29,6 +37,19 @@ def setup_comparison_database():
     
     return templates_dir
 # --- 核心修改區域 END ---
+
+# --- 常數設定 ---
+UPLOAD_DIR = "uploads"
+TEMPLATE_DIR = os.path.join(UPLOAD_DIR, "templates")
+COMPARISON_DIR = "data/comparison_templates"
+
+# --- 初始化應用程式 ---
+def initialize_app():
+    """創建應用程式所需的目錄"""
+    for path in [UPLOAD_DIR, TEMPLATE_DIR, COMPARISON_DIR]:
+        if not os.path.exists(path):
+            os.makedirs(path)
+    init_database()
 
 def save_comparison_template(name: str, description: str, uploaded_file, file_type: str) -> int:
     """
@@ -137,362 +158,81 @@ def delete_comparison_template(template_id: int) -> bool:
         st.error(f"刪除範本錯誤：{str(e)}")
         return False
 
-# ... 以下是您的 UI 顯示函數，保持不變 ...
-# (為了簡潔，此處省略，請您保留您檔案中原有的 UI 函數)
-def show_document_comparison():
-    st.title("🔍 文件比對檢查系統")
-    st.markdown("---")
+# --- 雲端資料庫操作 ---
+def get_comparison_templates_cloud():
+    """從雲端獲取比對範本"""
     try:
-        from utils.storage_monitor import get_template_storage_usage
-        template_usage = get_template_storage_usage()
-        if "比對範本" in template_usage:
-            comp_usage = template_usage["比對範本"]
-            st.info(f"📊 **比對範本容量**：{comp_usage['size_mb']} MB ({comp_usage['file_count']} 個檔案)")
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        
+        if turso_db.is_cloud_mode():
+            turso_db.create_tables()
+            return turso_db.get_comparison_templates()
+        else:
+            return get_comparison_templates()
     except Exception as e:
-        st.warning("容量統計載入失敗，請稍後再試")
-    st.markdown("---")
-    st.subheader("📋 選擇操作模式")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("### 📤 上傳範本\n**功能**：上傳並保存比對用的參考範本\n\n**流程**：\n- 上傳參考範本文件\n- 為範本命名\n- 保存到範本庫\n- 可重複使用")
-        if st.button("📤 上傳範本", use_container_width=True, type="primary"):
-            st.session_state.comparison_mode = "upload_template"
-            st.session_state.comparison_step = "upload_reference"
-            st.rerun()
-    with col2:
-        st.markdown("### 📁 管理範本\n**功能**：管理已上傳的比對範本\n\n**功能**：\n- 查看已上傳的範本\n- 刪除不需要的範本\n- 範本容量統計\n- 範本分類管理")
-        if st.button("📁 管理範本", use_container_width=True, type="primary"):
-            st.session_state.comparison_mode = "manage_templates"
-            st.session_state.comparison_step = "template_list"
-            st.rerun()
-    with col3:
-        st.markdown("### 🔍 比對範本\n**功能**：使用已保存的範本進行文件比對\n\n**流程**：\n- 選擇比對模式\n- 選擇已保存的範本\n- 上傳需要比對的文件\n- 查看比對結果")
-        if st.button("🔍 比對範本", use_container_width=True, type="primary"):
-            st.session_state.comparison_mode = "compare_templates"
-            st.session_state.comparison_step = "select_mode"
-            st.session_state.comparison_type = None
-            st.session_state.selected_template = None
-            st.session_state.target_file = None
-            st.rerun()
-    st.markdown("---")
-    st.subheader("📖 使用說明")
-    with st.expander("💡 支援的文件格式"):
-        st.markdown("...") # 省略
-    with st.expander("⚙️ 技術說明"):
-        st.markdown("...") # 省略
+        st.warning(f"雲端連接失敗，使用本地資料庫：{str(e)}")
+        return get_comparison_templates()
 
-def show_template_upload():
-    st.title("📤 上傳比對範本")
-    st.markdown("---")
-    if st.session_state.comparison_step == "upload_reference":
-        st.subheader("📤 步驟 1：上傳參考範本")
-        st.info("請上傳一個標準的參考範本，系統將保存此範本供日後比對使用。")
-        template_name = st.text_input("範本名稱", help="為這個比對範本命名，例如「標準合約範本」")
-        uploaded_reference = st.file_uploader("選擇參考範本文件", type=['pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx', 'xls'], help="支援PDF、圖片、Word、Excel格式")
-        if uploaded_reference and template_name:
-            with st.spinner("正在處理上傳的範本..."):
-                try:
-                    file_extension = os.path.splitext(uploaded_reference.name)[1].lower()
-                    file_type_map = {'.pdf':'PDF', '.png':'PNG', '.jpg':'JPG', '.jpeg':'JPEG', '.docx':'DOCX', '.xlsx':'XLSX', '.xls':'XLS'}
-                    file_type = file_type_map.get(file_extension, 'UNKNOWN')
-                    progress_bar = st.progress(0)
-                    progress_bar.progress(25)
-                    template_id = save_comparison_template(name=template_name, description=f"比對範本：{uploaded_reference.name}", uploaded_file=uploaded_reference, file_type=file_type)
-                    progress_bar.progress(100)
-                    if template_id > 0:
-                        st.success(f"✅ 範本已成功儲存：{template_name}")
-                        st.session_state.saved_template_id = template_id
-                        st.session_state.template_name = template_name
-                        st.session_state.comparison_step = "save_template"
-                        st.rerun()
-                    else:
-                        st.error("範本儲存失敗，請重試")
-                except Exception as e:
-                    st.error(f"上傳失敗：{str(e)}")
-        elif uploaded_reference and not template_name:
-            st.warning("請輸入範本名稱")
-        elif template_name and not uploaded_reference:
-            st.warning("請上傳範本文件")
-    elif st.session_state.comparison_step == "save_template":
-        st.subheader("📤 步驟 2：保存範本")
-        if hasattr(st.session_state, 'saved_template_id') and st.session_state.saved_template_id > 0:
-            template_name = st.session_state.get('template_name', '未知範本')
-            st.success(f"✅ 範本已成功保存：{template_name}")
-            st.info(f"📝 範本ID：{st.session_state.saved_template_id}")
-            st.info("此範本已保存到範本庫，您可以在「比對範本」時選擇使用。")
+def save_comparison_template_cloud(name: str, filename: str, filepath: str, file_type: str, file_size: int) -> int:
+    """保存比對範本到雲端"""
+    try:
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        
+        if turso_db.is_cloud_mode():
+            turso_db.create_tables()
+            return turso_db.save_comparison_template(name, filename, filepath, file_type, file_size)
         else:
-            st.error("範本保存失敗，請重試")
-        st.markdown("---")
-        st.subheader("🔍 下一步操作")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("📤 繼續上傳範本", use_container_width=True, type="primary"):
-                st.session_state.comparison_step = "upload_reference"
-                st.session_state.saved_template_id = None
-                st.session_state.template_name = None
-                st.rerun()
-        with col2:
-            if st.button("🔍 立即開始比對", use_container_width=True, type="primary"):
-                st.session_state.comparison_mode = "compare_templates"
-                st.session_state.comparison_step = "select_mode"
-                st.rerun()
-        with col3:
-            if st.button("⬅️ 返回主選單", use_container_width=True):
-                st.session_state.comparison_mode = None
-                st.session_state.comparison_step = None
-                st.session_state.saved_template_id = None
-                st.session_state.template_name = None
-                st.rerun()
+            return save_comparison_template(name, filename, filepath, file_type, file_size)
+    except Exception as e:
+        st.warning(f"雲端連接失敗，使用本地資料庫：{str(e)}")
+        return save_comparison_template(name, filename, filepath, file_type, file_size)
 
-def show_template_management():
-    st.title("📁 管理比對範本")
-    st.markdown("---")
-    if st.session_state.comparison_step == "template_list":
-        st.subheader("📋 已上傳的比對範本")
-        available_templates = get_comparison_templates()
-        if available_templates:
-            st.success(f"✅ 找到 {len(available_templates)} 個範本")
-            for i, template in enumerate(available_templates):
-                size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template.get('file_size') else "未知"
-                expander_title = f"📄 {template['name']} ({template.get('file_type', '未知')}, {size_mb})"
-                with st.expander(expander_title):
-                    col1, col2, col3 = st.columns([2, 1, 1])
-                    with col1:
-                        st.write(f"**上傳日期**：{template.get('created_at', '未知')}")
-                        st.write(f"**檔案類型**：{template.get('file_type', '未知')}")
-                        st.write(f"**檔案大小**：{size_mb}")
-                        st.write(f"**檔案名稱**：{template.get('filename', '未知')}")
-                    with col2:
-                        delete_button = st.button("🗑️ 刪除", key=f"del_template_{template['id']}", type="secondary")
-                        if delete_button:
-                            if delete_comparison_template(template['id']):
-                                st.success(f"✅ 已刪除範本：{template['name']}")
-                                st.rerun()
-                            else:
-                                st.error("刪除失敗，請重試")
-                    with col3:
-                        view_button = st.button("🔍 查看詳情", key=f"view_template_{template['id']}", type="secondary")
-                        if view_button:
-                            st.session_state.selected_template_id = template['id']
-                            st.session_state.comparison_step = "template_detail"
-                            st.rerun()
+def delete_comparison_template_cloud(template_id: int) -> bool:
+    """從雲端刪除比對範本"""
+    try:
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        
+        if turso_db.is_cloud_mode():
+            turso_db.create_tables()
+            return turso_db.delete_comparison_template(template_id)
         else:
-            st.info("目前沒有已上傳的比對範本。")
-        
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            if st.button("⬅️ 返回主選單", use_container_width=True):
-                st.session_state.comparison_mode = None
-                st.session_state.comparison_step = None
-                st.rerun()
+            return delete_comparison_template(template_id)
+    except Exception as e:
+        st.warning(f"雲端連接失敗，使用本地資料庫：{str(e)}")
+        return delete_comparison_template(template_id)
 
-def show_comparison_selection():
-    """顯示比對選擇介面"""
-    st.title("🔍 文件比對")
-    st.markdown("---")
-    
-    if st.session_state.comparison_step == "select_mode":
-        st.subheader("📋 選擇比對模式")
-        
-        # 使用更美觀的卡片式設計
-        st.markdown("---")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div style="
-                border: 2px solid #4CAF50;
-                border-radius: 10px;
-                padding: 20px;
-                margin: 10px 0;
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            ">
-            """, unsafe_allow_html=True)
-            
-            st.markdown("### 📊 相似度比對")
-            st.markdown("**功能**：檢查文件是否符合範本標準")
-            st.markdown("**評分標準**：")
-            st.markdown("- 頁數相似度")
-            st.markdown("- 內容相似度") 
-            st.markdown("- 格式相似度")
-            st.markdown("**結果**：低於80分給警告")
-            
-            if st.button("📊 開始相似度比對", use_container_width=True, type="primary"):
-                st.session_state.comparison_type = "similarity"
-                st.session_state.comparison_step = "select_template"
-                st.rerun()
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div style="
-                border: 2px solid #2196F3;
-                border-radius: 10px;
-                padding: 20px;
-                margin: 10px 0;
-                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            ">
-            """, unsafe_allow_html=True)
-            
-            st.markdown("### 🔍 正確性比對")
-            st.markdown("**功能**：從範本中找到最接近的頁面")
-            st.markdown("**特點**：")
-            st.markdown("- PDF/圖片預覽")
-            st.markdown("- 即時顯示結果")
-            st.markdown("- 找出最相似頁面")
-            
-            if st.button("🔍 開始正確性比對", use_container_width=True, type="primary"):
-                st.session_state.comparison_type = "accuracy"
-                st.session_state.comparison_step = "select_template"
-                st.rerun()
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    elif st.session_state.comparison_step == "select_template":
-        st.subheader("📋 選擇比對範本")
-        available_templates = get_comparison_templates()
-        
-        if not available_templates:
-            st.warning("⚠️ 沒有可用的比對範本")
-            st.info("請先上傳一些比對範本，然後再進行比對操作。")
-            if st.button("📤 前往上傳範本", use_container_width=True):
-                st.session_state.comparison_mode = "upload_template"
-                st.session_state.comparison_step = "upload_reference"
-                st.rerun()
-            return
-        
-        st.success(f"✅ 找到 {len(available_templates)} 個可用範本")
-        
-        # 顯示範本列表供選擇
-        for template in available_templates:
-            size_mb = f"{template['file_size'] / (1024 * 1024):.1f} MB" if template.get('file_size') else "未知"
-            col1, col2 = st.columns([3, 1])
-            
-            with col1:
-                st.markdown(f"**{template['name']}** ({template.get('file_type', '未知')}, {size_mb})")
-                st.markdown(f"*{template.get('filename', '未知檔案')}*")
-            
-            with col2:
-                if st.button("✅ 選擇", key=f"select_template_{template['id']}", use_container_width=True):
-                    st.session_state.selected_template = template
-                    st.session_state.comparison_step = "upload_target"
-                    st.rerun()
-    
-    elif st.session_state.comparison_step == "upload_target":
-        st.subheader("📤 上傳比對文件")
-        selected_template = st.session_state.get('selected_template')
-        
-        if not selected_template:
-            st.error("❌ 未選擇範本，請重新選擇")
-            st.session_state.comparison_step = "select_template"
-            st.rerun()
-            return
-        
-        st.info(f"**已選擇範本**：{selected_template['name']}")
-        
-        if st.session_state.comparison_type == "similarity":
-            st.markdown("### 📊 相似度比對")
-            uploaded_file = st.file_uploader(
-                "選擇要比對的文件",
-                type=['pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx', 'xls'],
-                help="支援PDF、圖片、Word、Excel格式"
-            )
-            
-            if uploaded_file:
-                if st.button("🔍 開始相似度比對", use_container_width=True, type="primary"):
-                    with st.spinner("正在進行相似度比對..."):
-                        try:
-                            result = perform_similarity_comparison(selected_template, uploaded_file)
-                            st.success("✅ 相似度比對完成！")
-                            
-                            # 顯示比對結果
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown("### 📊 比對統計")
-                                st.metric("總體相似度", f"{result['overall_score']}%")
-                                st.metric("頁數相似度", f"{result['page_score']}%")
-                                st.metric("內容相似度", f"{result['content_score']}%")
-                                st.metric("格式相似度", f"{result['format_score']}%")
-                            
-                            with col2:
-                                st.markdown("### 📋 評分詳情")
-                                if result['overall_score'] < 80:
-                                    st.error("⚠️ 警告：相似度低於80分")
-                                    st.markdown("**建議檢查項目**：")
-                                    st.markdown("- 文件格式是否正確")
-                                    st.markdown("- 內容是否完整")
-                                    st.markdown("- 頁數是否相符")
-                                else:
-                                    st.success("✅ 文件相似度符合標準")
-                                
-                                st.markdown(f"**詳細分析**：")
-                                st.markdown(f"- 頁數差異：{result['page_diff']}")
-                                st.markdown(f"- 內容差異：{result['content_diff']}")
-                                st.markdown(f"- 格式差異：{result['format_diff']}")
-                                
-                                # 顯示頁面差異標示
-                                if result.get('page_issues'):
-                                    st.markdown("### ⚠️ 頁面差異標示")
-                                    for issue in result['page_issues']:
-                                        st.warning(f"• {issue}")
-                                else:
-                                    st.success("✅ 所有頁面都符合標準")
-                            
-                        except Exception as e:
-                            st.error(f"比對失敗：{str(e)}")
-        
-        elif st.session_state.comparison_type == "accuracy":
-            st.markdown("### 🔍 正確性比對")
-            uploaded_file = st.file_uploader(
-                "選擇要比對的文件",
-                type=['pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx', 'xls'],
-                help="支援PDF、圖片、Word、Excel格式"
-            )
-            
-            if uploaded_file:
-                if st.button("🔍 開始正確性比對", use_container_width=True, type="primary"):
-                    with st.spinner("正在進行正確性比對..."):
-                        try:
-                            result = perform_accuracy_comparison(selected_template, uploaded_file)
-                            st.success("✅ 正確性比對完成！")
-                            
-                            # 顯示比對結果
-                            col1, col2 = st.columns([1, 1])
-                            with col1:
-                                st.markdown("### 📊 比對結果")
-                                st.metric("最相似頁面", f"第 {result['best_match_page']} 頁")
-                                st.metric("相似度", f"{result['similarity_score']}%")
-                                st.metric("匹配項目", f"{result['match_count']} 項")
-                            
-                            with col2:
-                                st.markdown("### 🔍 預覽功能")
-                                if result.get('preview_image'):
-                                    st.image(result['preview_image'], caption="最相似頁面預覽", use_column_width=True)
-                                else:
-                                    st.info("預覽功能暫不可用")
-                            
-                            # 顯示詳細結果
-                            st.markdown("### 📋 詳細比對結果")
-                            for i, match in enumerate(result['matches'][:5]):  # 顯示前5個最相似的
-                                with st.expander(f"第 {match['page']} 頁 - 相似度 {match['score']}%"):
-                                    st.markdown(f"**匹配項目**：{match['match_items']}")
-                                    st.markdown(f"**差異項目**：{match['diff_items']}")
-                            
-                        except Exception as e:
-                            st.error(f"比對失敗：{str(e)}")
-    
-    # 返回按鈕
-    st.markdown("---")
-    if st.button("⬅️ 返回主選單", use_container_width=True):
-        st.session_state.comparison_mode = None
-        st.session_state.comparison_step = None
-        st.session_state.selected_template = None
-        st.rerun()
+# --- 本地檔案管理 ---
+def get_local_template_files():
+    """獲取本地範本檔案列表"""
+    local_files = []
+    if os.path.exists(COMPARISON_DIR):
+        for file in os.listdir(COMPARISON_DIR):
+            if file.endswith(('.pdf', '.docx', '.xlsx')):
+                file_path = os.path.join(COMPARISON_DIR, file)
+                file_size = os.path.getsize(file_path)
+                local_files.append({
+                    'filename': file,
+                    'filepath': file_path,
+                    'file_size': file_size
+                })
+    return local_files
 
+def delete_local_template_file(filename: str) -> bool:
+    """刪除本地範本檔案"""
+    try:
+        file_path = os.path.join(COMPARISON_DIR, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
+    except Exception as e:
+        st.error(f"刪除本地檔案失敗：{str(e)}")
+        return False
+
+# --- 比對功能實現 ---
 def perform_similarity_comparison(template, target_file):
     """
     執行相似度比對 - 檢查文件是否符合範本標準
@@ -616,38 +356,314 @@ def perform_accuracy_comparison(template, target_file):
             'matches': []
         }
 
-def perform_document_comparison(template_file, target_file):
-    """
-    舊的比對函數（保持向後相容）
-    """
-    return perform_similarity_comparison(template_file, target_file)
+# --- UI 渲染函式 ---
+def render_upload_section():
+    """渲染上傳區域"""
+    st.subheader("📤 上傳新範本")
+    
+    with st.form("template_upload_form"):
+        template_name = st.text_input("範本名稱", help="為此範本命名，例如「台電送件資料範本」")
+        uploaded_file = st.file_uploader("選擇範本檔案", type=['pdf', 'docx', 'xlsx'])
+        
+        if st.form_submit_button("✅ 上傳範本", type="primary"):
+            if not template_name or not uploaded_file:
+                st.warning("請填寫範本名稱並選擇檔案。")
+            else:
+                try:
+                    # 保存檔案
+                    file_path = save_uploaded_file(uploaded_file, COMPARISON_DIR)
+                    file_size = os.path.getsize(file_path)
+                    file_type = get_file_type(file_path)
+                    
+                    # 保存到資料庫
+                    template_id = save_comparison_template_cloud(
+                        name=template_name,
+                        filename=uploaded_file.name,
+                        filepath=file_path,
+                        file_type=file_type,
+                        file_size=file_size
+                    )
+                    
+                    if template_id > 0:
+                        st.success(f"✅ 範本 '{template_name}' 已成功上傳！")
+                        st.rerun()
+                    else:
+                        st.error("❌ 範本上傳失敗")
+                except Exception as e:
+                    st.error(f"上傳範本時發生錯誤：{str(e)}")
 
-def initialize_comparison():
-    if 'comparison_mode' not in st.session_state:
-        st.session_state.comparison_mode = None
-    if 'comparison_step' not in st.session_state:
-        st.session_state.comparison_step = None
-    if 'reference_file' not in st.session_state:
-        st.session_state.reference_file = None
-    if 'target_file' not in st.session_state:
-        st.session_state.target_file = None
+def render_comparison_section():
+    """渲染文件比對區域 - 兩個比對功能"""
+    st.subheader("🔍 文件比對")
+    
+    # 獲取可用範本
+    available_templates = get_comparison_templates_cloud()
+    
+    if not available_templates:
+        st.info("尚未上傳任何範本，請先上傳範本檔案。")
+        return
+    
+    # 選擇範本
+    template_options = {t['id']: t['name'] for t in available_templates}
+    selected_template_id = st.selectbox(
+        "選擇要比對的範本",
+        options=list(template_options.keys()),
+        format_func=lambda x: template_options[x]
+    )
+    
+    if selected_template_id:
+        selected_template = next((t for t in available_templates if t['id'] == selected_template_id), None)
+        
+        if selected_template:
+            st.info(f"已選擇範本：{selected_template['name']}")
+            
+            # 選擇比對模式
+            st.subheader("📋 選擇比對模式")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                <div style="
+                    border: 2px solid #4CAF50;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 10px 0;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                ">
+                """, unsafe_allow_html=True)
+                
+                st.markdown("### 📊 相似度比對")
+                st.markdown("**功能**：檢查文件是否符合範本標準")
+                st.markdown("**評分標準**：")
+                st.markdown("- 頁數相似度")
+                st.markdown("- 內容相似度") 
+                st.markdown("- 格式相似度")
+                st.markdown("**結果**：低於80分給警告")
+                
+                if st.button("📊 開始相似度比對", key="similarity_btn", use_container_width=True, type="primary"):
+                    st.session_state.comparison_type = "similarity"
+                    st.session_state.selected_template = selected_template
+                    st.rerun()
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("""
+                <div style="
+                    border: 2px solid #2196F3;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 10px 0;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                ">
+                """, unsafe_allow_html=True)
+                
+                st.markdown("### 🔍 正確性比對")
+                st.markdown("**功能**：從範本中找到最接近的頁面")
+                st.markdown("**特點**：")
+                st.markdown("- PDF/圖片預覽")
+                st.markdown("- 即時顯示結果")
+                st.markdown("- 找出最相似頁面")
+                
+                if st.button("🔍 開始正確性比對", key="accuracy_btn", use_container_width=True, type="primary"):
+                    st.session_state.comparison_type = "accuracy"
+                    st.session_state.selected_template = selected_template
+                    st.rerun()
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            # 執行比對
+            if 'comparison_type' in st.session_state and 'selected_template' in st.session_state:
+                st.subheader("📤 上傳比對文件")
+                
+                if st.session_state.comparison_type == "similarity":
+                    st.markdown("### 📊 相似度比對")
+                    uploaded_file = st.file_uploader(
+                        "選擇要比對的文件",
+                        type=['pdf', 'docx', 'xlsx'],
+                        key="similarity_upload"
+                    )
+                    
+                    if uploaded_file:
+                        if st.button("🔍 開始相似度比對", type="primary"):
+                            with st.spinner("正在進行相似度比對..."):
+                                try:
+                                    result = perform_similarity_comparison(st.session_state.selected_template, uploaded_file)
+                                    st.success("✅ 相似度比對完成！")
+                                    
+                                    # 顯示比對結果
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.markdown("### 📊 比對統計")
+                                        st.metric("總體相似度", f"{result['overall_score']}%")
+                                        st.metric("頁數相似度", f"{result['page_score']}%")
+                                        st.metric("內容相似度", f"{result['content_score']}%")
+                                        st.metric("格式相似度", f"{result['format_score']}%")
+                                    
+                                    with col2:
+                                        st.markdown("### 📋 評分詳情")
+                                        if result['overall_score'] < 80:
+                                            st.error("⚠️ 警告：相似度低於80分")
+                                            st.markdown("**建議檢查項目**：")
+                                            st.markdown("- 文件格式是否正確")
+                                            st.markdown("- 內容是否完整")
+                                            st.markdown("- 頁數是否相符")
+                                        else:
+                                            st.success("✅ 文件相似度符合標準")
+                                        
+                                        st.markdown(f"**詳細分析**：")
+                                        st.markdown(f"- 頁數差異：{result['page_diff']}")
+                                        st.markdown(f"- 內容差異：{result['content_diff']}")
+                                        st.markdown(f"- 格式差異：{result['format_diff']}")
+                                        
+                                        # 顯示頁面差異標示
+                                        if result.get('page_issues'):
+                                            st.markdown("### ⚠️ 頁面差異標示")
+                                            for issue in result['page_issues']:
+                                                st.warning(f"• {issue}")
+                                        else:
+                                            st.success("✅ 所有頁面都符合標準")
+                                    
+                                except Exception as e:
+                                    st.error(f"比對失敗：{str(e)}")
+                
+                elif st.session_state.comparison_type == "accuracy":
+                    st.markdown("### 🔍 正確性比對")
+                    uploaded_file = st.file_uploader(
+                        "選擇要比對的文件",
+                        type=['pdf', 'docx', 'xlsx'],
+                        key="accuracy_upload"
+                    )
+                    
+                    if uploaded_file:
+                        if st.button("🔍 開始正確性比對", type="primary"):
+                            with st.spinner("正在進行正確性比對..."):
+                                try:
+                                    result = perform_accuracy_comparison(st.session_state.selected_template, uploaded_file)
+                                    st.success("✅ 正確性比對完成！")
+                                    
+                                    # 顯示比對結果
+                                    col1, col2 = st.columns([1, 1])
+                                    with col1:
+                                        st.markdown("### 📊 比對結果")
+                                        st.metric("最相似頁面", f"第 {result['best_match_page']} 頁")
+                                        st.metric("相似度", f"{result['similarity_score']}%")
+                                        st.metric("匹配項目", f"{result['match_count']} 項")
+                                    
+                                    with col2:
+                                        st.markdown("### 🔍 預覽功能")
+                                        if result.get('preview_image'):
+                                            st.image(result['preview_image'], caption="最相似頁面預覽", use_column_width=True)
+                                        else:
+                                            st.info("預覽功能暫不可用")
+                                    
+                                    # 顯示詳細結果
+                                    st.markdown("### 📋 詳細比對結果")
+                                    for i, match in enumerate(result['matches'][:5]):  # 顯示前5個最相似的
+                                        with st.expander(f"第 {match['page']} 頁 - 相似度 {match['score']}%"):
+                                            st.markdown(f"**匹配項目**：{match['match_items']}")
+                                            st.markdown(f"**差異項目**：{match['diff_items']}")
+                                    
+                                except Exception as e:
+                                    st.error(f"比對失敗：{str(e)}")
+
+def render_template_management():
+    """渲染範本管理區域"""
+    st.subheader("⚙️ 管理比對範本")
+    
+    # 獲取雲端範本
+    cloud_templates = get_comparison_templates_cloud()
+    
+    # 獲取本地檔案
+    local_files = get_local_template_files()
+    
+    # 顯示雲端範本
+    if cloud_templates:
+        st.markdown("**📊 雲端範本**")
+        total_size_mb = sum(t.get('file_size', 0) for t in cloud_templates) / (1024 * 1024)
+        st.info(f"📊 雲端範本容量：{total_size_mb:.2f} MB ({len(cloud_templates)} 個檔案)")
+        
+        for template in cloud_templates:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"📄 {template['name']} ({template['filename']})")
+            with col2:
+                st.write(f"{template.get('file_size', 0) / 1024:.1f} KB")
+            with col3:
+                if st.button("🗑️ 刪除", key=f"delete_cloud_{template['id']}"):
+                    if delete_comparison_template_cloud(template['id']):
+                        st.success(f"✅ 範本 '{template['name']}' 已刪除")
+                        st.rerun()
+                    else:
+                        st.error("❌ 刪除失敗")
+    else:
+        st.info("📊 雲端範本容量：0 MB (0 個檔案)")
+    
+    # 顯示本地檔案
+    if local_files:
+        st.markdown("**💾 本地檔案**")
+        total_local_size_mb = sum(f.get('file_size', 0) for f in local_files) / (1024 * 1024)
+        st.info(f"💾 本地檔案容量：{total_local_size_mb:.2f} MB ({len(local_files)} 個檔案)")
+        
+        for file_info in local_files:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"📄 {file_info['filename']}")
+            with col2:
+                st.write(f"{file_info['file_size'] / 1024:.1f} KB")
+            with col3:
+                if st.button("🗑️ 刪除", key=f"delete_local_{file_info['filename']}"):
+                    if delete_local_template_file(file_info['filename']):
+                        st.success(f"✅ 檔案 '{file_info['filename']}' 已刪除")
+                        st.rerun()
+                    else:
+                        st.error("❌ 刪除失敗")
+    
+    # 清理本地檔案按鈕
+    if local_files:
+        if st.button("🧹 清理所有本地檔案", type="secondary"):
+            deleted_count = 0
+            for file_info in local_files:
+                if delete_local_template_file(file_info['filename']):
+                    deleted_count += 1
+            
+            if deleted_count > 0:
+                st.success(f"✅ 已清理 {deleted_count} 個本地檔案")
+                st.rerun()
+            else:
+                st.error("❌ 清理失敗")
 
 def show_document_comparison_main():
-    initialize_comparison()
+    """
+    顯示文件比對主界面
+    """
+    # 返回按鈕
     col1, col2 = st.columns([1, 4])
     with col1:
-        if st.button("⬅️ 返回首頁", key="back_to_home_comp"):
-            st.session_state.comparison_mode = None
-            st.session_state.comparison_step = None
-            st.session_state.saved_template_id = None
-            st.session_state.template_name = None
+        if st.button("⬅️ 返回首頁", key="back_to_home_dc"):
             st.session_state.page_selection = "🏠 系統首頁"
             st.rerun()
-    if st.session_state.comparison_mode == "upload_template":
-        show_template_upload()
-    elif st.session_state.comparison_mode == "manage_templates":
-        show_template_management()
-    elif st.session_state.comparison_mode == "compare_templates":
-        show_comparison_selection()
-    else:
-        show_document_comparison()
+    
+    st.title("📋 文件比對與範本管理")
+    st.markdown("---")
+    
+    # 顯示整合的雲端連接狀態卡片
+    show_turso_status_card()
+    
+    # 初始化應用程式
+    initialize_app()
+    
+    # 創建分頁
+    tab1, tab2, tab3 = st.tabs(["📤 上傳範本", "🔍 文件比對", "⚙️ 管理範本"])
+    
+    with tab1:
+        render_upload_section()
+    
+    with tab2:
+        render_comparison_section()
+    
+    with tab3:
+        render_template_management()

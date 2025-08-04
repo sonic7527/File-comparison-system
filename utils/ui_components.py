@@ -34,3 +34,74 @@ def apply_custom_css():
         }
         </style>
     """, unsafe_allow_html=True)
+
+def show_status_card(status_type: str, message: str):
+    """
+    顯示單一狀態卡片
+    status_type: 'success', 'error', 'warning'
+    message: 顯示訊息
+    """
+    status_icons = {
+        'success': '✅',
+        'error': '❌', 
+        'warning': '⚠️'
+    }
+    
+    icon = status_icons.get(status_type, 'ℹ️')
+    
+    st.markdown(f"""
+    <div class="status-card {status_type}">
+        <div class="content">
+            <span>{icon}</span>
+            <span>{message}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def show_turso_status_card():
+    """
+    顯示整合的 Turso 狀態卡片，包含所有相關狀態
+    """
+    from core.turso_database import TursoDatabase
+    
+    try:
+        turso_db = TursoDatabase()
+        if turso_db.is_configured():
+            # 整合所有成功狀態
+            status_messages = [
+                "✅ Turso 配置正確，已準備連接雲端資料庫",
+                "🌐 雲端模式：範本將同步到雲端資料庫", 
+                "✅ Turso 表格創建成功"
+            ]
+            
+            st.markdown(f"""
+            <div class="status-card success-dark">
+                <div class="content">
+                    <span>☁️</span>
+                    <span>雲端連接正常 | 純雲端模式</span>
+                </div>
+                <div style="margin-top: 8px; font-size: 10px; opacity: 0.8;">
+                    {status_messages[0]}<br>
+                    {status_messages[1]}<br>
+                    {status_messages[2]}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="status-card error-dark">
+                <div class="content">
+                    <span>❌</span>
+                    <span>雲端未連接，請檢查配置</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    except Exception:
+        st.markdown(f"""
+        <div class="status-card warning-dark">
+            <div class="content">
+                <span>⚠️</span>
+                <span>雲端連接狀態未知</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)

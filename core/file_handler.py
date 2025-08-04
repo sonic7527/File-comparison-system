@@ -29,21 +29,41 @@ def parse_excel_fields(excel_path):
     跳過第一行（標題行）。
     """
     try:
-        df = pd.read_excel(excel_path, header=None)
+        # 檢查檔案是否存在
+        if not os.path.exists(excel_path):
+            st.error(f"Excel 檔案不存在：{excel_path}")
+            return []
+        
+        # 嘗試讀取 Excel 檔案
+        try:
+            df = pd.read_excel(excel_path, header=None)
+        except Exception as e:
+            st.error(f"無法讀取 Excel 檔案：{str(e)}")
+            st.info("請確認檔案格式是否為有效的 Excel 檔案 (.xlsx)")
+            return []
+        
         if df.empty:
+            st.error("Excel 檔案是空的")
             return []
 
+        # 顯示調試資訊
+        st.info(f"成功讀取 Excel 檔案，共 {len(df)} 行，{len(df.columns)} 欄")
+        
         field_definitions = []
         for index, row in df.iterrows():
             # 跳過第一行（標題行）
             if index == 0:
                 continue
                 
+            # 檢查第一欄（欄位名稱）
             field_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else None
             if not field_name or field_name == 'nan':
                 continue
 
+            # 檢查第二欄（預設值）
             field_value = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+            
+            # 檢查第三欄（說明）
             description = str(row.iloc[2]).strip() if len(row) > 2 and pd.notna(row.iloc[2]) else ""
             
             # --- 下拉選單邏輯 ---
@@ -73,9 +93,17 @@ def parse_excel_fields(excel_path):
                 'dropdown_options': dropdown_options # 新增欄位
             })
         
+        if not field_definitions:
+            st.error("未找到任何有效的欄位定義")
+            st.info("請確認 Excel 檔案格式：第一欄為欄位名稱，第二欄為預設值，第三欄為說明")
+            return []
+        
+        st.success(f"成功解析 {len(field_definitions)} 個欄位")
         return field_definitions
+        
     except Exception as e:
         st.error(f"解析Excel欄位時發生錯誤: {e}")
+        st.info("請檢查 Excel 檔案格式是否正確")
         return []
 
 

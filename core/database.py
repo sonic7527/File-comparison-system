@@ -1,17 +1,15 @@
-import sqlite3
 import os
 import json
+import sqlite3
 from typing import List, Dict
 from pathlib import Path
-import streamlit as st
 
-# --- 這是我們之前修正好的正確路徑設定 ---
-ROOT_DIR = Path(__file__).parent.parent 
+# --- 本地 SQLite 資料庫設定 ---
+ROOT_DIR = Path(__file__).parent.parent
 DB_PATH = ROOT_DIR / "data" / "templates.db"
-# -----------------------------------------
 
 def get_db_connection():
-    """建立並返回資料庫連線，啟用外鍵約束"""
+    """建立並返回本地 SQLite 資料庫連線，啟用外鍵約束"""
     os.makedirs(DB_PATH.parent, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -19,7 +17,7 @@ def get_db_connection():
     return conn
 
 def init_database():
-    """初始化資料庫和表格"""
+    """初始化本地 SQLite 資料庫和表格"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         # 建立範本群組表格
@@ -39,6 +37,7 @@ def init_database():
             filename TEXT NOT NULL,
             filepath TEXT NOT NULL,
             file_type TEXT NOT NULL,
+            file_size INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (group_id) REFERENCES template_groups (id) ON DELETE CASCADE
         );
@@ -92,9 +91,10 @@ def create_template_group(name: str, source_excel_path: str, field_definitions: 
             for file_path in template_files:
                 filename = os.path.basename(file_path)
                 file_type = os.path.splitext(filename)[1].lower().replace('.', '')
+                file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
                 cursor.execute(
-                    "INSERT INTO template_files (group_id, filename, filepath, file_type) VALUES (?, ?, ?, ?)",
-                    (group_id, filename, file_path, file_type)
+                    "INSERT INTO template_files (group_id, filename, filepath, file_type, file_size) VALUES (?, ?, ?, ?, ?)",
+                    (group_id, filename, file_path, file_type, file_size)
                 )
             conn.commit()
             return group_id
@@ -125,7 +125,7 @@ def get_template_files(group_id: int) -> List[Dict]:
     """根據群組ID獲取所有範本檔案"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, filename, filepath, file_type FROM template_files WHERE group_id = ?", (group_id,))
+        cursor.execute("SELECT id, filename, filepath, file_type, file_size FROM template_files WHERE group_id = ?", (group_id,))
         files = [dict(row) for row in cursor.fetchall()]
         return files
 
@@ -197,78 +197,77 @@ def delete_template_group(group_id: int) -> bool:
             row = cursor.fetchone()
             if row and os.path.exists(row['source_excel_path']):
                 os.remove(row['source_excel_path'])
-
-            # 2. 刪除資料庫紀錄 (由於設定了 ON DELETE CASCADE，會自動刪除關聯的檔案和欄位)
+            
+            # 2. 刪除資料庫紀錄（外鍵約束會自動處理相關紀錄）
             cursor.execute("DELETE FROM template_groups WHERE id = ?", (group_id,))
             conn.commit()
             return True
         except Exception:
             conn.rollback()
-    return False
+            return False
 
 def update_template_group_fields(group_id: int) -> List[Dict]:
-    """
-    重新解析基本資料Excel檔案的欄位
-    只解析基本資料檔案，不影響其他範本檔案
-    """
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # 獲取群組的基本資料Excel路徑
-            cursor.execute("SELECT source_excel_path FROM template_groups WHERE id = ?", (group_id,))
-            result = cursor.fetchone()
-            if not result:
-                return None
-            
-            excel_path = result['source_excel_path']
-            # 使用 pathlib 來組合和檢查路徑
-            full_excel_path = ROOT_DIR / excel_path
-            if not full_excel_path.exists():
-                return None
-            
-            # 重新解析Excel檔案
-            import pandas as pd
-            df = pd.read_excel(full_excel_path, header=None)
-            
-            # 提取欄位定義
-            field_definitions = []
-            for index, row in df.iterrows():
-                if index == 0:
-                    continue
-                
-                field_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else None
-                if not field_name or field_name == 'nan':
-                    continue
+    """獲取指定群組的欄位定義（用於編輯）"""
+    return get_field_definitions(group_id)
 
-                field_value = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
-                description = str(row.iloc[2]).strip() if len(row) > 2 and pd.notna(row.iloc[2]) else ""
-                
-                # 處理下拉選單選項
-                dropdown_options = []
-                if "這邊可以做成下拉式選單" in description:
-                    clean_desc = description.replace("這邊可以做成下拉式選單", "").strip()
-                    options = [opt.strip() for opt in clean_desc.split('\n') if opt.strip()]
-                    if len(options) <= 1:
-                        import re
-                        options = re.split(r'\d+\.|\d+\s', clean_desc)
-                        options = [opt.strip() for opt in options if opt.strip()]
-                    if options:
-                        dropdown_options = options
-                
-                field_definitions.append({
-                    'name': field_name,
-                    'default_value': field_value,
-                    'description': description,
-                    'dropdown_options': dropdown_options
-                })
-            
-            # 更新資料庫中的欄位定義
-            if update_field_definitions(group_id, field_definitions):
-                return field_definitions
-            else:
-                return None
-                    
-    except Exception as e:
-        print(f"重新解析欄位時發生錯誤: {str(e)}")
-        return None
+# --- 比對範本相關函數 ---
+def get_comparison_templates() -> List[Dict]:
+    """獲取所有比對範本"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM comparison_templates ORDER BY created_at DESC")
+        templates = [dict(row) for row in cursor.fetchall()]
+        return templates
+
+def save_comparison_template(name: str, filename: str, filepath: str, file_type: str, file_size: int) -> int:
+    """保存比對範本"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO comparison_templates (name, filename, filepath, file_type, file_size) VALUES (?, ?, ?, ?, ?)",
+                (name, filename, filepath, file_type, file_size)
+            )
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            raise ValueError(f"名為 '{name}' 的比對範本已存在。")
+        except Exception as e:
+            conn.rollback()
+            raise e
+
+def delete_comparison_template(template_id: int) -> bool:
+    """刪除比對範本"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            # 先獲取檔案路徑
+            cursor.execute("SELECT filepath FROM comparison_templates WHERE id = ?", (template_id,))
+            row = cursor.fetchone()
+            if row:
+                # 刪除實體檔案
+                if os.path.exists(row['filepath']):
+                    os.remove(row['filepath'])
+                # 刪除資料庫紀錄
+                cursor.execute("DELETE FROM comparison_templates WHERE id = ?", (template_id,))
+                conn.commit()
+                return True
+        except Exception:
+            conn.rollback()
+    return False
+
+def add_template_file(group_id: int, file_info: Dict) -> bool:
+    """添加範本檔案到指定群組"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO template_files (group_id, filename, filepath, file_type, file_size) VALUES (?, ?, ?, ?, ?)",
+                (group_id, file_info['filename'], file_info['filepath'], file_info['file_type'], file_info.get('file_size', 0))
+            )
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            return False 

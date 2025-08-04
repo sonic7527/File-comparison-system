@@ -70,8 +70,9 @@ def clean_all_templates():
     # 4. 清理雲端資料庫（如果可用）
     try:
         import streamlit as st
-        from core.turso_database import turso_db
+        from core.turso_database import TursoDatabase
         
+        turso_db = TursoDatabase()
         if turso_db.is_cloud_mode():
             # 獲取所有比對範本
             templates = turso_db.get_comparison_templates()
