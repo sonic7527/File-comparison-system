@@ -21,6 +21,41 @@ st.set_page_config(
 def get_system_stats():
     """從資料庫獲取系統統計數據"""
     try:
+        # 嘗試使用雲端資料庫
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        
+        if turso_db.is_cloud_mode():
+            # 雲端模式：從 Turso 獲取統計
+            try:
+                # 獲取範本群組數量
+                template_groups = turso_db.get_all_template_groups_cloud()
+                total_groups = len(template_groups)
+                
+                # 獲取範本檔案數量
+                total_files = 0
+                for group in template_groups:
+                    files = turso_db.get_template_files_cloud(group['id'])
+                    total_files += len(files)
+                
+                # 獲取比對範本數量
+                comparison_templates = turso_db.get_comparison_templates()
+                total_files += len(comparison_templates)
+                
+                generated_today = 15  # 模擬數據
+                return total_groups, total_files, generated_today
+            except Exception as e:
+                # 如果雲端查詢失敗，回退到本地
+                return get_local_system_stats()
+        else:
+            # 本地模式：使用本地 SQLite
+            return get_local_system_stats()
+    except Exception:
+        return get_local_system_stats()
+
+def get_local_system_stats():
+    """從本地 SQLite 資料庫獲取系統統計數據"""
+    try:
         if not os.path.exists(os.path.dirname(DB_PATH)):
             os.makedirs(os.path.dirname(DB_PATH))
         init_database()
@@ -218,14 +253,7 @@ def show_home_page():
         if st.button("前往比對", key="nav_comp", use_container_width=True, help="進入文件比對功能"):
             navigate_to("🔍 文件比對")
 
-    # 系統統計
-    st.markdown('<div class="stats-container">', unsafe_allow_html=True)
-    total_groups, total_files, generated_today = get_system_stats()
-    stat_cols = st.columns(3)
-    stat_cols[0].metric(label="📊 總範本群組數", value=total_groups)
-    stat_cols[1].metric(label="📂 總範本檔案數", value=total_files)
-    stat_cols[2].metric(label="📈 今日已生成文件 (模擬)", value=generated_today)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 移除系統統計欄位，因為容量監控已提供更詳細的信息
 
     # 容量監控區域（移到最下方）
     st.markdown("---")
