@@ -303,20 +303,14 @@ def main():
     apply_global_styles()
     initialize_app()
     
-    # 檢查並顯示 Turso 狀態
+    # 檢查 Turso 狀態（靜默模式，不顯示訊息）
     try:
         from core.turso_database import TursoDatabase
         turso_db = TursoDatabase()
-        # 安全檢查方法是否存在
-        if hasattr(turso_db, 'check_and_display_status'):
-            turso_db.check_and_display_status()
-        else:
-            # 如果方法不存在，顯示基本狀態
-            if turso_db.is_cloud_mode():
-                st.success("✅ Turso 雲端資料庫已配置")
-            else:
-                st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
+        # 靜默檢查，不顯示狀態訊息
+        turso_db.is_cloud_mode()  # 只檢查狀態，不顯示訊息
     except Exception as e:
+        # 只在出現錯誤時顯示警告
         st.warning(f"資料庫狀態檢查失敗：{str(e)}")
     
     page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]

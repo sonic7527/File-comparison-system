@@ -66,6 +66,7 @@ def show_turso_status_card():
     
     try:
         turso_db = TursoDatabase()
+        # 靜默檢查狀態，不觸發任何訊息顯示
         if turso_db.is_configured():
             # 整合所有成功狀態
             status_messages = [

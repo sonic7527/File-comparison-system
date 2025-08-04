@@ -57,8 +57,11 @@ class TursoDatabase:
         """檢查是否已配置 Turso"""
         return self.is_cloud_mode()
     
-    def check_and_display_status(self):
+    def check_and_display_status(self, silent=False):
         """檢查並顯示 Turso 狀態"""
+        if silent:
+            return  # 靜默模式，不顯示任何訊息
+        
         if self.is_cloud_mode():
             st.success("✅ Turso 雲端資料庫已配置")
         else:
@@ -85,7 +88,6 @@ class TursoDatabase:
                     future = executor.submit(create_client_safe)
                     self.client = future.result(timeout=10)
                 
-                st.success("✅ Turso 客戶端創建成功")
                 return True
             except Exception as e:
                 st.warning(f"⚠️ Turso 客戶端創建失敗：{str(e)}")
