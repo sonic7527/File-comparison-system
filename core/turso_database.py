@@ -33,12 +33,12 @@ class TursoDatabase:
                 self.turso_url = turso_url
                 self.turso_token = turso_token
                 self.client = None  # 暫時設為 None，在需要時才創建
-                st.success("✅ Turso 配置已載入")
+                # 移除初始化時的消息顯示，避免在啟動時就顯示
             else:
-                st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
+                # 移除初始化時的消息顯示，避免在啟動時就顯示
                 self.client = None
         except Exception as e:
-            st.warning(f"⚠️ Turso 配置檢查失敗，將使用本地 SQLite：{str(e)}")
+            # 移除初始化時的消息顯示，避免在啟動時就顯示
             self.client = None
     
     def is_cloud_mode(self) -> bool:
@@ -56,6 +56,14 @@ class TursoDatabase:
     def is_configured(self) -> bool:
         """檢查是否已配置 Turso"""
         return self.is_cloud_mode()
+    
+    def check_and_display_status(self):
+        """檢查並顯示 Turso 狀態"""
+        if self.is_cloud_mode():
+            st.success("✅ Turso 雲端資料庫已配置")
+        else:
+            st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
+            st.info("💡 如需使用雲端資料庫，請在 Streamlit Cloud 中配置 Turso secrets")
     
     def _ensure_client(self):
         """確保客戶端已創建"""

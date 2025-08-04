@@ -303,6 +303,14 @@ def main():
     apply_global_styles()
     initialize_app()
     
+    # 檢查並顯示 Turso 狀態
+    try:
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        turso_db.check_and_display_status()
+    except Exception as e:
+        st.warning(f"資料庫狀態檢查失敗：{str(e)}")
+    
     page_options = ["🏠 系統首頁", "📝 智能文件生成與管理", "🔍 文件比對"]
     try:
         current_index = page_options.index(st.session_state.page_selection)
