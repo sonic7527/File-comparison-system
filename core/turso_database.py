@@ -22,11 +22,18 @@ class TursoDatabase:
             turso_url = st.secrets.get("turso", {}).get("url")
             turso_token = st.secrets.get("turso", {}).get("token")
             
+            # 如果無法從 secrets 獲取，嘗試從環境變數獲取
+            if not turso_url:
+                turso_url = os.environ.get("TURSO_URL")
+            if not turso_token:
+                turso_token = os.environ.get("TURSO_TOKEN")
+            
             if turso_url and turso_token:
                 # 延遲創建客戶端，避免在初始化時就觸發異步問題
                 self.turso_url = turso_url
                 self.turso_token = turso_token
                 self.client = None  # 暫時設為 None，在需要時才創建
+                st.success("✅ Turso 配置已載入")
             else:
                 st.warning("⚠️ 未配置 Turso，將使用本地 SQLite")
                 self.client = None
@@ -36,7 +43,15 @@ class TursoDatabase:
     
     def is_cloud_mode(self) -> bool:
         """檢查是否為雲端模式"""
-        return hasattr(self, 'turso_url') and hasattr(self, 'turso_token') and self.turso_url and self.turso_token
+        try:
+            return (hasattr(self, 'turso_url') and 
+                   hasattr(self, 'turso_token') and 
+                   self.turso_url and 
+                   self.turso_token and
+                   isinstance(self.turso_url, str) and
+                   isinstance(self.turso_token, str))
+        except Exception:
+            return False
     
     def is_configured(self) -> bool:
         """檢查是否已配置 Turso"""

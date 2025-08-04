@@ -91,9 +91,15 @@ def save_comparison_template(name: str, description: str, uploaded_file, file_ty
             )
             conn.commit()
         
-        # 本地測試模式：只保存到本地
-        st.success("✅ 範本已成功保存到本地資料庫")
-        st.info("💻 本地測試模式：僅使用本地 SQLite 資料庫")
+        # 檢查是否為雲端模式
+        from core.turso_database import TursoDatabase
+        turso_db = TursoDatabase()
+        
+        if turso_db.is_cloud_mode():
+            st.success("✅ 範本已成功保存到雲端資料庫")
+        else:
+            st.success("✅ 範本已成功保存到本地資料庫")
+            st.info("💻 本地模式：使用本地 SQLite 資料庫")
         
         return template_id
     except sqlite3.IntegrityError:
@@ -125,8 +131,14 @@ def get_comparison_templates() -> list:
                 }
                 templates.append(template)
             
-            # 顯示本地統計
-            st.info(f"💻 本地範本數量: {len(templates)}")
+            # 檢查是否為雲端模式
+            from core.turso_database import TursoDatabase
+            turso_db = TursoDatabase()
+            
+            if turso_db.is_cloud_mode():
+                st.info(f"☁️ 雲端範本數量: {len(templates)}")
+            else:
+                st.info(f"💻 本地範本數量: {len(templates)}")
             return templates
     except Exception as e:
         st.error(f"取得範本列表錯誤：{str(e)}")
